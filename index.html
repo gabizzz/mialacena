@@ -365,7 +365,7 @@
         productoActualNombre = "Producto";
 
         // NOTA: Modificamos dinámicamente el endpoint de Precios Claros para soportar búsquedas de producto único o por arrays fijos.
-        const urlPreciosClaros = `https://d3e6htiiul5ek9.cloudfront.net/prod/producto?limit=30&id_producto=${ean}&lat=${miLatitud}&lng=${miLongitud};
+        const urlPreciosClaros = `https://d3e6htiiul5ek9.cloudfront.net/prod/producto?limit=30&id_producto=${ean}&lat=${miLatitud}&lng=${miLongitud}`;
         console.log(urlPreciosClaros);
         const urlCarrefour = `https://www.carrefour.com.ar/api/io/_v/api/intelligent-search/product_search?query=${ean}&postalCode=2800&_nocache=${Date.now()}`;
 
