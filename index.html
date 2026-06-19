@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Buscador y Alacena Personalizada</title>
+    <title>Top 3 Sucursales Más Baratas y Alacena</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: #f4f7f6;
             color: #333;
-            max-width: 850px;
+            max-width: 700px;
             margin: 30px auto;
             padding: 20px;
         }
@@ -20,174 +20,140 @@
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
             margin-bottom: 20px;
         }
-        h1, h2, h3 { margin-top: 0; color: #2c3e50; }
-        h1 { font-size: 24px; }
-        h2 { font-size: 20px; border-bottom: 2px solid #ecf0f1; padding-bottom: 8px; }
-        
-        .flex-inputs { display: flex; gap: 10px; margin-top: 15px; }
+        h1 { margin-top: 0; color: #2c3e50; font-size: 24px; }
+        label { font-weight: bold; display: block; margin-bottom: 8px; }
         input[type="text"] {
-            flex: 1;
+            width: 100%;
             padding: 10px;
+            margin-bottom: 15px;
             border: 1px solid #ccc;
             border-radius: 4px;
+            box-sizing: border-box;
             font-size: 16px;
         }
         button {
             background-color: #2980b9;
             color: white;
             border: none;
-            padding: 10px 20px;
-            font-size: 15px;
+            padding: 12px 20px;
+            font-size: 16px;
             border-radius: 4px;
             cursor: pointer;
+            width: 100%;
         }
         button:hover { background-color: #2471a3; }
         button:disabled { background-color: #95a5a6; cursor: not-allowed; }
+        .status { margin-top: 10px; font-style: italic; color: #7f8c8d; }
+        #resultado { margin-top: 20px; display: none; }
         
-        .btn-update-all { background-color: #27ae60; width: 100%; padding: 12px; font-weight: bold; margin-bottom: 15px; }
-        .btn-update-all:hover { background-color: #219653; }
-        
-        .status { margin-top: 10px; font-style: italic; color: #7f8c8d; font-size: 14px; }
-        
-        /* Panel del Selector Temporal (Top 3) */
-        .selector-box { background: #f8f9fa; border: 1px dashed #bdc3c7; border-radius: 6px; padding: 15px; margin-top: 15px; display: none; }
-        .option-item {
+        .sucursal-item {
             background: #fff;
-            border: 1px solid #e0e0e0;
-            padding: 12px;
-            margin-top: 8px;
+            border: 1px solid #ddd;
+            border-left: 5px solid #27ae60;
+            padding: 15px;
+            margin-top: 12px;
             border-radius: 4px;
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
-        .btn-select { background-color: #8e44ad; font-size: 13px; padding: 6px 12px; }
-        .btn-select:hover { background-color: #732d91; }
+        .sucursal-item.carrefour {
+            border-left-color: #00469b; 
+        }
+        .sucursal-info p { margin: 4px 0; }
+        .badge-pos {
+            background: #27ae60;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 50%;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        .sucursal-item.carrefour .badge-pos { background: #00469b; }
+        .precio-tag { font-size: 20px; font-weight: bold; color: #2c3e50; }
+        .error { color: #c0392b; background: #f9ebea; padding: 10px; border-radius: 4px; margin-top: 15px; }
 
-        /* Grid de la Alacena */
-        .alacena-grid { display: flex; flex-direction: column; gap: 12px; margin-top: 15px; }
-        .product-card {
-            background: #fff;
-            border: 1px solid #e0e0e0;
-            border-left: 5px solid #8e44ad;
-            border-radius: 6px;
-            padding: 15px;
+        /* Estilos nuevos para la Alacena */
+        .alacena-lista {
+            list-style: none;
+            padding: 0;
+        }
+        .alacena-item {
+            background: #fdfefe;
+            border: 1px solid #e2e8f0;
+            padding: 10px 15px;
+            margin-bottom: 8px;
+            border-radius: 4px;
             display: flex;
-            align-items: center;
             justify-content: space-between;
+            align-items: center;
         }
-        .prod-main { display: flex; align-items: center; gap: 15px; flex: 1; }
-        .prod-img { width: 55px; height: 55px; object-fit: contain; border: 1px solid #f0f0f0; border-radius: 4px; background: #fff; }
-        .prod-details h4 { margin: 0 0 5px 0; color: #2c3e50; font-size: 16px; }
-        .prod-details p { margin: 2px 0; font-size: 12px; color: #7f8c8d; }
-        
-        .prod-price-box { text-align: right; margin-right: 20px; min-width: 160px; }
-        .best-price { font-size: 18px; font-weight: bold; color: #2c3e50; }
-        .best-store { font-size: 11px; color: #27ae60; font-weight: bold; display: block; margin-top: 2px; }
-        
-        .btn-delete { background-color: #e74c3c; padding: 6px 12px; font-size: 13px; }
-        .btn-delete:hover { background-color: #c0392b; }
-
-        .debug-panel {
-            background: #2c3e50;
-            color: #ecf0f1;
-            font-family: 'Courier New', Courier, monospace;
-            font-size: 11px;
-            padding: 12px;
-            border-radius: 6px;
-            max-height: 100px;
-            overflow-y: auto;
-        }
+        .alacena-item span { font-size: 14px; }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <h1>1. Buscar Producto por EAN</h1>
-    <div id="geoStatus" class="status">Obteniendo coordenadas de referencia...</div>
+    <h1>Comparador: Top 3 Sucursales Más Baratas</h1>
     
-    <div class="flex-inputs">
-        <input type="text" id="idProducto" value="7798033333907" placeholder="Código de barras EAN">
-        <button id="btnBuscar" disabled>Buscar Opciones</button>
+    <div id="geoStatus" class="status">Obteniendo tu ubicación actual...</div>
+    
+    <div style="margin-top: 15px;">
+        <label for="idProducto">Código de barras (EAN):</label>
+        <input type="text" id="idProducto" value="7798033333907" placeholder="Ej: 7798033333907">
+        <button id="btnBuscar" disabled>Buscar y Calcular Precios</button>
     </div>
 
-    <div id="selectorBox" class="selector-box">
-        <h3>Resultados Encontrados (Top 3 Más Baratos)</h3>
-        <p style="margin: 0; font-size: 13px; color:#7f8c8d;">Elegí cuál de estas opciones querés guardar en tu alacena permanente:</p>
-        <div id="opcionesDestacadas"></div>
+    <div id="errorBox" class="error" style="display: none;"></div>
+
+    <div id="resultado">
+        <h3>Producto: <span id="prodNombre" style="color:#2980b9;">-</span></h3>
+        <p><small>Resultados ordenados del más barato al más caro (Top 3)</small></p>
+        <div id="listaSucursales"></div>
     </div>
 </div>
 
 <div class="card">
-    <h2>2. Mi Alacena Controlada (<span id="cantProductos">0</span>)</h2>
-    <button id="btnActualizarTodo" class="btn-update-all" disabled>🔄 Sincronizar Precios Actuales de Toda la Alacena</button>
-    
-    <div id="listaAlacena" class="alacena-grid">
-        </div>
-</div>
-
-<div class="card" style="background: transparent; box-shadow: none; padding: 0;">
-    <div class="debug-panel">
-        <div id="technical-debug-logs">Consola de red pasiva...</div>
-    </div>
+    <h2>My Alacena 🛒</h2>
+    <ul id="listaAlacena" class="alacena-lista">
+        </ul>
 </div>
 
 <script>
     let miLatitud = null;
     let miLongitud = null;
-    const miCodigoPostal = "2804"; 
 
-    // Alacena en LocalStorage
-    let alacena = JSON.parse(localStorage.getItem('mi_alacena_manual')) || [];
-
-    // Almacén temporal de la última búsqueda realizada
-    let ultimasOpcionesBuscadas = [];
+    // Array global para almacenar los productos de tu alacena
+    let alacena = [];
 
     const geoStatus = document.getElementById('geoStatus');
     const btnBuscar = document.getElementById('btnBuscar');
-    const btnActualizarTodo = document.getElementById('btnActualizarTodo');
-    const selectorBox = document.getElementById('selectorBox');
-    const opcionesDestacadas = document.getElementById('opcionesDestacadas');
+    const errorBox = document.getElementById('errorBox');
+    const resultadoDiv = document.getElementById('resultado');
+    const listaSucursales = document.getElementById('listaSucursales');
     const listaAlacena = document.getElementById('listaAlacena');
-    const debugLogs = document.getElementById('technical-debug-logs');
-    const cantProductos = document.getElementById('cantProductos');
 
-    function logTecnico(mensaje) {
-        debugLogs.innerText = `[${new Date().toLocaleTimeString()}] ${mensaje}`;
-    }
-
-    async function fetchWithTimeout(resource, options = {}, timeout = 5000) {
-        const controller = new AbortController();
-        const id = setTimeout(() => controller.abort(), timeout);
-        const response = await fetch(resource, { ...options, signal: controller.signal });
-        clearTimeout(id);
-        return response;
-    }
-
-    // Ubicación base para calcular distancias informativas
+    // 1. Geolocalización
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
             (position) => {
                 miLatitud = position.coords.latitude;
                 miLongitud = position.coords.longitude;
-                geoStatus.innerHTML = `📍 Coordenadas de referencia listas. Buscando sin límite de distancia.`;
+                geoStatus.innerHTML = `📍 Ubicación obtenida correctamente (${miLatitud.toFixed(4)}, ${miLongitud.toFixed(4)})`;
                 geoStatus.style.color = '#27ae60';
                 btnBuscar.disabled = false;
-                btnActualizarTodo.disabled = false;
-                renderAlacena();
             },
-            () => {
-                geoStatus.innerHTML = "⚠️ Ubicación por defecto asignada. Buscando sin límite de distancia.";
+            (error) => {
+                geoStatus.innerHTML = "⚠️ Ubicación no otorgada. Usando ubicación por defecto.";
                 geoStatus.style.color = '#d35400';
                 miLatitud = -34.0981; 
                 miLongitud = -59.0286;
                 btnBuscar.disabled = false;
-                btnActualizarTodo.disabled = false;
-                renderAlacena();
             }
         );
     }
 
+    // 2. Distancia Haversine
     function calcularDistancia(lat1, lon1, lat2, lon2) {
         if (!lat1 || !lon1 || !lat2 || !lon2) return null;
         const R = 6371; 
@@ -197,258 +163,147 @@
         return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))); 
     }
 
-    // Proxies multinivel para Carrefour Digital
-    async function fetchProductFromCarrefour(ean, postalCode) {
-        const targetUrl = `https://www.carrefour.com.ar/api/io/_v/api/intelligent-search/product_search?query=${ean}&postalCode=${postalCode}&_nocache=${Date.now()}`;
-        try {
-            const response = await fetchWithTimeout(`https://corsproxy.io/?${encodeURIComponent(targetUrl)}`, {}, 4000);
-            if (response.ok) { const text = await response.text(); if (!text.includes("cloudflare")) return JSON.parse(text); }
-        } catch (e) {}
-        try {
-            const response = await fetchWithTimeout(`https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`, {}, 5000);
-            if (response.ok) { const text = await response.text(); if (!text.includes("cloudflare")) return JSON.parse(text); }
-        } catch (e) {}
-        return null;
+    // NUEVA FUNCIÓN: Agrega el producto a la alacena y actualiza el HTML
+    function agregarAAlacena(nombreProducto, opcionMasBarata) {
+        const itemAlacena = {
+            producto: nombreProducto,
+            sucursal: opcionMasBarata.nombre,
+            precio: opcionMasBarata.precio
+        };
+
+        alacena.push(itemAlacena);
+        actualizarVistaAlacena();
     }
 
-    function procesarRespuestaVtex(data) {
-        if (!data || !data.products || data.products.length === 0) return null;
-        const prod = data.products[0];
-        let spotPrice = prod.priceRange?.sellingPrice?.lowPrice;
-        if ((spotPrice === null || spotPrice === undefined) && prod.items?.[0]?.sellers?.[0]) {
-            const offer = prod.items[0].sellers[0].commertialOffer;
-            spotPrice = offer?.spotPrice || offer?.Price;
-        }
-        return spotPrice ? {
-            name: `${prod.brand || ''} - ${prod.productName}`,
-            price: parseFloat(spotPrice),
-            image: prod.items?.[0]?.images?.[0]?.imageUrl || ""
-        } : null;
+    // NUEVA FUNCIÓN: Renderiza los elementos actuales de la alacena
+    function actualizarVistaAlacena() {
+        listaAlacena.innerHTML = "";
+        alacena.forEach(item => {
+            const li = document.createElement('li');
+            li.className = "alacena-item";
+            li.innerHTML = `
+                <div>
+                    <strong>${item.producto}</strong><br>
+                    <span>Lugar: ${item.sucursal}</span>
+                </div>
+                <div class="precio-tag" style="font-size: 16px;">$${item.precio.toLocaleString('es-AR', {minimumFractionDigits: 2})}</div>
+            `;
+            listaAlacena.appendChild(li);
+        });
     }
 
-    // 1. DISPARAR BÚSQUEDA SIN FILTROS DE DISTANCIA
+    // 3. Request
     btnBuscar.addEventListener('click', async () => {
         const ean = document.getElementById('idProducto').value.trim();
-        if (!ean) return;
+        if (!ean) return alert("Ingresa un código de barras.");
 
+        listaSucursales.innerHTML = "";
+        errorBox.style.display = 'none';
+        btnBuscar.innerText = "Consultando APIs...";
         btnBuscar.disabled = true;
-        btnBuscar.innerText = "Consultando...";
-        opcionesDestacadas.innerHTML = "";
-        selectorBox.style.display = "none";
-        ultimasOpcionesBuscadas = [];
+
+        let todasLasOpciones = [];
+        let nombreProductoDetectado = "Producto";
 
         const sucursalesPublicas = "23-1-6292,15-1-216,23-1-6213,23-1-6201,12-1-117,15-1-233,23-1-6293,23-1-6209,15-1-5590,64-1-3,23-1-6203,15-1-5601,15-1-194,12-1-154,15-1-1036,9-3-5214,15-1-137,15-1-187,9-3-5211,61-1-23,15-1-283,11-5-1087,23-1-6208,12-1-155,3-1-1291,15-1-179,15-1-116,23-1-6204,64-1-19,9-3-662";
         const urlPreciosClaros = `https://d3e6htiiul5ek9.cloudfront.net/prod/producto?limit=10&id_producto=${ean}&array_sucursales=${sucursalesPublicas}`;
-
+        //const urlCarrefour = `https://www.carrefour.com.ar/api/io/_v/api/intelligent-search/product_search?query=${ean}`;
+// Modificación de la URL para saltar CORS y buscar exactamente por campo EAN
+const urlCarrefour = `https://cors-anywhere.herokuapp.com/https://www.carrefour.com.ar/api/io/_v/api/intelligent-search/product_search?q=sku.ean:${ean}`;
         try {
-            logTecnico(`Buscando EAN ${ean} en todas las fuentes disponibles...`);
             const [resPrecios, resCarrefour] = await Promise.allSettled([
                 fetch(urlPreciosClaros).then(r => r.json()),
-                fetchProductFromCarrefour(ean, miCodigoPostal)
+                fetch(urlCarrefour).then(r => r.json())
             ]);
 
-            let nombreDetectado = "Producto Desconocido";
-            let imagenDetectada = "";
-
-            // Parsear todas las sucursales físicas sin importar la distancia
-            if (resPrecios.status === "fulfilled" && resPrecios.value && resPrecios.value.sucursales) {
-                if (resPrecios.value.producto?.nombre) nombreDetectado = resPrecios.value.producto.nombre;
+            // Parsear Precios Claros
+            if (resPrecios.status === "fulfilled" && resPrecios.value.sucursales) {
+                const data = resPrecios.value;
+                if (data.producto && data.producto.nombre) nombreProductoDetectado = data.producto.nombre;
                 
-                resPrecios.value.sucursales.forEach(suc => {
+                data.sucursales.forEach(suc => {
                     if (!suc.message && suc.preciosProducto) {
-                        // Aseguramos capturar el valor correcto de forma limpia
-                        const precioRaw = suc.preciosProducto.precioLista || suc.preciosProducto.precio_unitario_con_iva;
-                        
-                        // VALIDACIÓN CRÍTICA: Solo avanzar si el precio realmente existe y es un número válido
-                        if (precioRaw !== undefined && precioRaw !== null && !isNaN(parseFloat(precioRaw))) {
-                            const dist = calcularDistancia(miLatitud, miLongitud, parseFloat(suc.lat), parseFloat(suc.lng));
-                            ultimasOpcionesBuscadas.push({
-                                tipoOrigen: "precios_claros",
-                                idSucursal: suc.id,
-                                tienda: `${suc.banderaDescripcion || 'Sucursal'} (${suc.sucursalNombre || 'S/N'})`,
-                                precio: parseFloat(precioRaw), // Forzamos float puro
-                                meta: dist ? `📍 A ${dist.toFixed(1)} km` : "📍 Sucursal física",
-                                name: nombreDetectado,
-                                image: ""
+                        const precio = suc.preciosProducto.precioLista || suc.preciosProducto.precio_unitario_con_iva;
+                        const dist = calcularDistancia(miLatitud, miLongitud, parseFloat(suc.lat), parseFloat(suc.lng));
+                        if (precio) {
+                            todasLasOpciones.push({
+                                cadena: "PreciosClaros",
+                                nombre: `${suc.banderaDescripcion} (${suc.sucursalNombre})`,
+                                direccion: suc.direccion || "Dirección no disponible",
+                                distancia: dist,
+                                precio: parseFloat(precio)
                             });
                         }
                     }
                 });
             }
 
-            // Parsear Carrefour Digital
-            if (resCarrefour.status === "fulfilled" && resCarrefour.value) {
-                const c4 = procesarRespuestaVtex(resCarrefour.value);
-                if (c4) {
-                    if (nombreDetectado === "Producto Desconocido") nombreDetectado = c4.name;
-                    imagenDetectada = c4.image;
-                    ultimasOpcionesBuscadas.push({
-                        tipoOrigen: "carrefour_digital",
-                        idSucursal: "ONLINE",
-                        tienda: "Carrefour Digital",
-                        precio: c4.price,
-                        meta: "🚚 Canal Digital (Mismo precio Web)",
-                        name: c4.name,
-                        image: c4.image
+            // Parsear Carrefour buscando el "spotPrice" exacto
+            if (resCarrefour.status === "fulfilled" && resCarrefour.value.products && resCarrefour.value.products.length > 0) {
+                const prodCarrefour = resCarrefour.value.products[0];
+                if (nombreProductoDetectado === "Producto") nombreProductoDetectado = prodCarrefour.productName;
+
+                const item = prodCarrefour.items?.[0];
+                const seller = item?.sellers?.[0];
+                const precioC4 = seller?.commertialOffer?.spotPrice;
+
+                if (precioC4) {
+                    todasLasOpciones.push({
+                        cadena: "Carrefour",
+                        nombre: `Carrefour (${prodCarrefour.brand || 'Digital'})`,
+                        direccion: "Precio de referencia de tienda digital",
+                        distancia: null, 
+                        precio: parseFloat(precioC4)
                     });
                 }
             }
 
-            // Ordenamos todo de menor a mayor precio absoluto
-            ultimasOpcionesBuscadas.sort((a, b) => a.precio - b.precio);
+            // Ordenar por precio (Menor a Mayor)
+            todasLasOpciones.sort((a, b) => a.precio - b.precio);
             
-            // Tomamos las 3 mejores alternativas globales
-            const top3 = ultimasOpcionesBuscadas.slice(0, 3);
+            // Filtramos el Top 3
+            const top3 = todasLasOpciones.slice(0, 3);
 
             if (top3.length > 0) {
-                top3.forEach((opt, index) => {
-                    // Si el elemento de Precios Claros no tiene foto, hereda la de Carrefour si es el mismo EAN
-                    if (!opt.image && imagenDetectada) opt.image = imagenDetectada;
-
-                    const itemHtml = `
-                        <div class="option-item">
-                            <div>
-                                <strong>$${opt.price.toLocaleString('es-AR', {minimumFractionDigits: 2})}</strong> 
-                                — ${opt.tienda} <br>
-                                <small style="color: #7f8c8d;">${opt.meta}</small>
+                document.getElementById('prodNombre').innerText = nombreProductoDetectado;
+                
+                top3.forEach((suc, index) => {
+                    const esCarrefour = suc.cadena === "Carrefour" ? "carrefour" : "";
+                    const distTexto = suc.distancia ? `${suc.distancia.toFixed(2)} KM` : "N/A";
+                    
+                    const htmlCard = `
+                        <div class="sucursal-item ${esCarrefour}">
+                            <div class="sucursal-info">
+                                <p><span class="badge-pos">#${index + 1}</span> <strong>${suc.nombre}</strong></p>
+                                <p><small>📍 ${suc.direccion}</small></p>
+                                <p><small>🚗 Distancia: ${distTexto}</small></p>
                             </div>
-                            <button class="btn-select" onclick="agregarEspecificoALaAlacena(${index}, '${ean}')">Agregar esta</button>
+                            <div class="precio-tag">$${suc.precio.toLocaleString('es-AR', {minimumFractionDigits: 2})}</div>
                         </div>
                     `;
-                    opcionesDestacadas.innerHTML += itemHtml;
+                    listaSucursales.innerHTML += htmlCard;
                 });
-                selectorBox.style.display = "block";
+
+                resultadoDiv.style.display = 'block';
+
+                // CAMBIO PRINCIPAL: Como 'todasLasOpciones' ya está ordenado de menor a mayor,
+                // la posición [0] contiene de forma garantizada la opción más barata.
+                const opcionMasBarata = todasLasOpciones[0];
+                agregarAAlacena(nombreProductoDetectado, opcionMasBarata);
+
             } else {
-                alert("No se encontraron registros de precios para este código de barras.");
+                throw new Error("No se encontraron precios disponibles para este producto.");
             }
 
         } catch (err) {
-            logTecnico(`Error en búsqueda: ${err.message}`);
+            errorBox.innerText = err.message;
+            errorBox.style.display = 'block';
+            resultadoDiv.style.display = 'none';
         } finally {
+            btnBuscar.innerText = "Buscar y Calcular Precios";
             btnBuscar.disabled = false;
-            btnBuscar.innerText = "Buscar Opciones";
         }
     });
-
-    // 2. EL USUARIO ELIGE QUÉ SUCURSAL/PRECIO AGREGAR
-    window.agregarEspecificoALaAlacena = function(indexInTop3, ean) {
-        const seleccion = ultimasOpcionesBuscadas[indexInTop3];
-        if (!seleccion) return;
-
-        const nuevoProducto = {
-            ean: ean,
-            name: seleccion.name,
-            price: seleccion.precio,
-            store: seleccion.tienda,
-            meta: seleccion.meta,
-            image: seleccion.image,
-            tipoOrigen: seleccion.tipoOrigen,
-            idSucursal: seleccion.idSucursal, // Almacenado para que el update vaya directo acá
-            lastUpdate: Date.now()
-        };
-
-        // Si ya existía el EAN en nuestra alacena, lo pisamos con la nueva elección de sucursal
-        const idxExistente = alacena.findIndex(p => p.ean === ean);
-        if (idxExistente !== -1) {
-            alacena[idxExistente] = nuevoProducto;
-        } else {
-            alacena.push(nuevoProducto);
-        }
-
-        localStorage.setItem('mi_alacena_manual', JSON.stringify(alacena));
-        renderAlacena();
-        
-        // Ocultar selector tras añadir
-        selectorBox.style.display = "none";
-        logTecnico(`Guardado en alacena: ${seleccion.name} en ${seleccion.tienda}`);
-    };
-
-    // Renderizar la Alacena desde LocalStorage
-    function renderAlacena() {
-        listaAlacena.innerHTML = "";
-        cantProductos.innerText = alacena.length;
-
-        if (alacena.length === 0) {
-            listaAlacena.innerHTML = `<p class="status" style="text-align:center; padding:20px;">Alacena vacía. Buscá un producto arriba y elegí qué precio guardar.</p>`;
-            return;
-        }
-
-        alacena.forEach((prod, idx) => {
-            const imgUrl = prod.image ? prod.image : "https://via.placeholder.com/55?text=Item";
-            const fecha = prod.lastUpdate ? new Date(prod.lastUpdate).toLocaleTimeString() : 'N/A';
-            
-            const card = document.createElement('div');
-            card.className = "product-card";
-            card.innerHTML = `
-                <div class="prod-main">
-                    <img src="${imgUrl}" class="prod-img" alt="foto">
-                    <div class="prod-details">
-                        <h4>${prod.name}</h4>
-                        <p><strong>EAN:</strong> ${prod.ean} | <strong>Actualizado:</strong> ${fecha}</p>
-                        <p style="color:#8e44ad; font-size:11px;">Origen fijado: ${prod.store}</p>
-                    </div>
-                </div>
-                <div class="prod-price-box">
-                    <span class="best-price">$${prod.price.toLocaleString('es-AR', {minimumFractionDigits:2})}</span>
-                    <span class="best-store">${prod.meta}</span>
-                </div>
-                <button class="btn-delete" onclick="eliminarDeAlacena(${idx})">Eliminar</button>
-            `;
-            listaAlacena.appendChild(card);
-        });
-    }
-
-    // 3. ACTUALIZACIÓN DIRIGIDA (Mantiene el lugar que vos elegiste)
-    btnActualizarTodo.addEventListener('click', async () => {
-        if (alacena.length === 0) return;
-        btnActualizarTodo.disabled = true;
-        btnActualizarTodo.innerText = "🔄 Sincronizando puntos elegidos...";
-
-        for (let i = 0; i < alacena.length; i++) {
-            const item = alacena[i];
-            logTecnico(`Actualizando [${i+1}/${alacena.length}] de origen fijo...`);
-
-            try {
-                if (item.tipoOrigen === "carrefour_digital") {
-                    const resC4 = await fetchProductFromCarrefour(item.ean, miCodigoPostal);
-                    const mapeado = procesarRespuestaVtex(resC4);
-                    if (mapeado) {
-                        item.price = mapeado.price;
-                        item.lastUpdate = Date.now();
-                    }
-                } else if (item.tipoOrigen === "precios_claros") {
-                    // Consulta optimizada: Le pedimos a Precios Claros sólo los datos de la sucursal específica guardada
-                    const urlAislada = `https://d3e6htiiul5ek9.cloudfront.net/prod/producto?limit=10&id_producto=${item.ean}&array_sucursales=${item.idSucursal}`;
-                    const resPC = await fetch(urlAislada).then(r => r.json());
-                    
-                    if (resPC.sucursales && resPC.sucursales.length > 0) {
-                        const sucData = resPC.sucursales[0];
-                        if (!sucData.message && sucData.preciosProducto) {
-                            const nuevoPrecio = sucData.preciosProducto.precioLista || sucData.preciosProducto.precio_unitario_con_iva;
-                            if (nuevoPrecio) {
-                                item.price = parseFloat(nuevoPrecio);
-                                item.lastUpdate = Date.now();
-                            }
-                        }
-                    }
-                }
-            } catch (err) {
-                console.error(`Error actualizando item ${item.ean}`, err);
-            }
-        }
-
-        localStorage.setItem('mi_alacena_manual', JSON.stringify(alacena));
-        renderAlacena();
-        btnActualizarTodo.disabled = false;
-        btnActualizarTodo.innerText = "🔄 Sincronizar Precios Actuales de Toda la Alacena";
-        logTecnico("Alacena sincronizada correctamente.");
-    });
-
-    window.eliminarDeAlacena = function(index) {
-        alacena.splice(index, 1);
-        localStorage.setItem('mi_alacena_manual', JSON.stringify(alacena));
-        renderAlacena();
-    };
 </script>
 
 </body>
