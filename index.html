@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Top 3 Sucursales Más Baratas y Alacena</title>
+    <title>Top 3 Sucursales Más Baratas y Alacena Permanente</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -89,8 +89,21 @@
             align-items: center;
         }
         .alacena-item span { font-size: 14px; }
+        
+        /* Estilo del nuevo botón Eliminar */
+        .btn-eliminar {
+            background-color: #e74c3c;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            font-size: 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            width: auto;
+            margin-left: 15px;
+        }
+        .btn-eliminar:hover { background-color: #c0392b; }
 
-        /* Logs técnicos de depuración */
         .debug-panel {
             background: #2c3e50;
             color: #ecf0f1;
@@ -139,7 +152,10 @@
 <script>
     let miLatitud = null;
     let miLongitud = null;
-    let alacena = [];
+    
+    // MODIFICACIÓN 1: Al iniciar, intentamos cargar la lista guardada en localStorage. 
+    // Si no hay nada guardado, iniciamos con un array vacío [].
+    let alacena = JSON.parse(localStorage.getItem('miAlacena')) || [];
 
     const geoStatus = document.getElementById('geoStatus');
     const btnBuscar = document.getElementById('btnBuscar');
@@ -149,7 +165,9 @@
     const listaAlacena = document.getElementById('listaAlacena');
     const debugPanel = document.getElementById('technical-debug-logs');
 
-    // Auxiliar: Logger técnico en pantalla
+    // Al cargar la página por primera vez, dibujamos lo que esté guardado en memoria
+    actualizarVistaAlacena();
+
     function logTecnico(mensaje, tipo = "info") {
         const p = document.createElement('p');
         p.className = `log-line log-${tipo}`;
@@ -158,7 +176,6 @@
         debugPanel.scrollTop = debugPanel.scrollHeight;
     }
 
-    // Auxiliar: Fetch con Timeout para evitar congelamientos si un proxy cae
     async function fetchWithTimeout(resource, options = {}, timeout = 5000) {
         const controller = new AbortController();
         const id = setTimeout(() => controller.abort(), timeout);
@@ -197,34 +214,58 @@
         return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))); 
     }
 
-    // Alacena Logic
+    // LÓGICA DE ALACENA MODIFICADA
     function agregarAAlacena(nombreProducto, opcionMasBarata) {
         const itemAlacena = {
+            id: Date.now(), // Agregamos un ID único usando la fecha actual para poder borrarlo fácilmente
             producto: nombreProducto,
             sucursal: opcionMasBarata.nombre,
             precio: opcionMasBarata.precio
         };
         alacena.push(itemAlacena);
+        
+        // MODIFICACIÓN 2: Guardamos el array actualizado en LocalStorage
+        localStorage.setItem('miAlacena', JSON.stringify(alacena));
+        
+        actualizarVistaAlacena();
+    }
+
+    // MODIFICACIÓN 3: Nueva función para eliminar un producto por su ID
+    function eliminarDeAlacena(idItem) {
+        // Filtramos la lista para dejar fuera el elemento con el ID seleccionado
+        alacena = alacena.filter(item => item.id !== idItem);
+        
+        // Actualizamos LocalStorage con la nueva lista filtrada
+        localStorage.setItem('miAlacena', JSON.stringify(alacena));
+        
+        // Volvemos a dibujar la lista en pantalla
         actualizarVistaAlacena();
     }
 
     function actualizarVistaAlacena() {
         listaAlacena.innerHTML = "";
+        
+        if (alacena.length === 0) {
+            listaAlacena.innerHTML = "<li style='color: #7f8c8d; font-style: italic;'>Tu alacena está vacía.</li>";
+            return;
+        }
+
         alacena.forEach(item => {
             const li = document.createElement('li');
             li.className = "alacena-item";
             li.innerHTML = `
-                <div>
+                <div style="flex-grow: 1;">
                     <strong>${item.producto}</strong><br>
                     <span>Lugar: ${item.sucursal}</span>
                 </div>
                 <div class="precio-tag" style="font-size: 16px;">$${item.precio.toLocaleString('es-AR', {minimumFractionDigits: 2})}</div>
+                <button class="btn-eliminar" onclick="eliminarDeAlacena(${item.id})">❌</button>
             `;
             listaAlacena.appendChild(li);
         });
     }
 
-    // FUNCIONES APORTADAS POR EL USUARIO (Optimizadas con la estructura actual)
+    // FUNCIONES DE CARREFOUR
     async function fetchProductFromCarrefour(ean, postalCode = "2800") {
         const timestamp = Date.now();
         const targetUrl = `https://www.carrefour.com.ar/api/io/_v/api/intelligent-search/product_search?query=${ean}&postalCode=${postalCode}&_nocache=${timestamp}`;
@@ -232,7 +273,6 @@
         debugPanel.innerHTML = ""; 
         logTecnico(`URL objetivo: ${targetUrl}`);
 
-        // CANAL 1: CORSProxy.io
         try {
             const proxyUrl1 = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
             logTecnico("Intentando Canal 1 (CORSProxy.io)...");
@@ -243,16 +283,13 @@
                     throw new Error("Bloqueo de seguridad (Cloudflare) detectado.");
                 }
                 const jsonData = JSON.parse(textData);
-                logTecnico("Canal 1 exitoso y recibido.", "success");
+                logTecnico("Canal 1 exitoso.", "success");
                 return jsonData;
             } else {
                 throw new Error(`HTTP ${response.status}`);
             }
-        } catch (err) {
-            logTecnico(`Canal 1 fallido: ${err.message}`, "error");
-        }
+        } catch (err) { logTecnico(`Canal 1 fallido: ${err.message}`, "error"); }
 
-        // CANAL 2: AllOrigins RAW
         try {
             const proxyUrl2 = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
             logTecnico("Intentando Canal 2 (AllOrigins RAW)...");
@@ -265,14 +302,9 @@
                 const jsonData = JSON.parse(textData);
                 logTecnico("Canal 2 exitoso.", "success");
                 return jsonData;
-            } else {
-                throw new Error(`HTTP ${response.status}`);
-            }
-        } catch (err) {
-            logTecnico(`Canal 2 fallido: ${err.message}`, "error");
-        }
+            } else { throw new Error(`HTTP ${response.status}`); }
+        } catch (err) { logTecnico(`Canal 2 fallido: ${err.message}`, "error"); }
 
-        // CANAL 3: Codetabs
         try {
             const proxyUrl3 = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`;
             logTecnico("Intentando Canal 3 (Codetabs)...");
@@ -285,24 +317,17 @@
                 const jsonData = JSON.parse(textData);
                 logTecnico("Canal 3 exitoso.", "success");
                 return jsonData;
-            } else {
-                throw new Error(`HTTP ${response.status}`);
-            }
-        } catch (err) {
-            logTecnico(`Canal 3 fallido: ${err.message}`, "error");
-        }
+            } else { throw new Error(`HTTP ${response.status}`); }
+        } catch (err) { logTecnico(`Canal 3 fallido: ${err.message}`, "error"); }
 
-        throw new Error("Todos los canales de red proxy alternativos fallaron.");
+        throw new Error("Todos los canales proxy fallaron.");
     }
 
     function procesarRespuestaVtex(data) {
         if (!data) return null;
         try {
             let products = Array.isArray(data) ? data : (data.products || []);
-            if (products.length === 0) {
-                logTecnico("API sin coincidencias o sin stock para esta zona.", "error");
-                return null;
-            }
+            if (products.length === 0) return null;
 
             const prod = products[0];
             const brand = prod.brand || "";
@@ -313,7 +338,6 @@
 
             if (prod.priceRange && prod.priceRange.sellingPrice) {
                 spotPrice = prod.priceRange.sellingPrice.lowPrice;
-                logTecnico(`Precio detectado en priceRange: $${spotPrice}`);
             }
 
             if ((spotPrice === null || spotPrice === undefined) && prod.items && prod.items[0] && prod.items[0].sellers && prod.items[0].sellers[0]) {
@@ -329,20 +353,13 @@
             }
 
             if (spotPrice !== null && spotPrice !== undefined) {
-                return {
-                    name: completeName,
-                    price: parseFloat(spotPrice)
-                };
+                return { name: completeName, price: parseFloat(spotPrice) };
             }
-            
             return null;
-        } catch (err) {
-            logTecnico(`Error al analizar datos internos: ${err.message}`, "error");
-            return null;
-        }
+        } catch (err) { return null; }
     }
 
-    // 3. Request Principal Integrado
+    // 3. Request Principal Geo-localizado
     btnBuscar.addEventListener('click', async () => {
         const ean = document.getElementById('idProducto').value.trim();
         if (!ean) return alert("Ingresa un código de barras.");
@@ -355,23 +372,23 @@
         let todasLasOpciones = [];
         let nombreProductoDetectado = "Producto";
 
-        // En lugar de usar la lista fija 'sucursalesPublicas', usamos tu latitud y longitud dinámicas
-        // Definimos un radio en metros (ej: 5000 metros = 5 KM a la redonda)
-        const radioBusqueda = 30000; 
+        const radioBusqueda = 5000; 
         const urlPreciosClaros = `https://d3e6htiiul5ek9.cloudfront.net/prod/productos?id_producto=${ean}&lat=${miLatitud}&lng=${miLongitud}&radio=${radioBusqueda}&limit=30`;
+
         try {
-            // Ejecutamos ambas consultas en paralelo usando tu nueva función multi-proxy para Carrefour
             const [resPrecios, resCarrefourRaw] = await Promise.allSettled([
                 fetch(urlPreciosClaros).then(r => r.json()),
                 fetchProductFromCarrefour(ean)
             ]);
 
-            // Parsear Precios Claros
-            if (resPrecios.status === "fulfilled" && resPrecios.value && resPrecios.value.sucursales) {
+            // Parsear Precios Claros Geo
+            if (resPrecios.status === "fulfilled" && resPrecios.value) {
                 const data = resPrecios.value;
                 if (data.producto && data.producto.nombre) nombreProductoDetectado = data.producto.nombre;
                 
-                data.sucursales.forEach(suc => {
+                const sucursalesEncontradas = data.sucursales || data.resultados || [];
+                
+                sucursalesEncontradas.forEach(suc => {
                     if (!suc.message && suc.preciosProducto) {
                         const precio = suc.preciosProducto.precioLista || suc.preciosProducto.precio_unitario_con_iva;
                         const dist = calcularDistancia(miLatitud, miLongitud, parseFloat(suc.lat), parseFloat(suc.lng));
@@ -388,11 +405,10 @@
                 });
             }
 
-            // Parsear Carrefour usando tu función procesadora modular
+            // Parsear Carrefour
             if (resCarrefourRaw.status === "fulfilled" && resCarrefourRaw.value) {
                 const itemProcesado = procesarRespuestaVtex(resCarrefourRaw.value);
                 if (itemProcesado) {
-                    // Si Precios Claros falló o devolvió nombre genérico, adoptamos el de Carrefour
                     if (nombreProductoDetectado === "Producto") nombreProductoDetectado = itemProcesado.name;
 
                     todasLasOpciones.push({
@@ -405,7 +421,7 @@
                 }
             }
 
-            // Ordenar de Menor a Mayor Precio absoluto
+            // Ordenar de Menor a Mayor
             todasLasOpciones.sort((a, b) => a.precio - b.precio);
             const top3 = todasLasOpciones.slice(0, 3);
 
@@ -431,12 +447,12 @@
 
                 resultadoDiv.style.display = 'block';
 
-                // SELECCIÓN AUTOMÁTICA: Guardamos en la alacena de forma garantizada el menor del ordenamiento
+                // Selección del menor
                 const opcionMasBarata = todasLasOpciones[0];
                 agregarAAlacena(nombreProductoDetectado, opcionMasBarata);
 
             } else {
-                throw new Error("No se obtuvieron registros de precios en ninguna plataforma.");
+                throw new Error("No se obtuvieron registros de precios.");
             }
 
         } catch (err) {
