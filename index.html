@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Top 3 Sucursales Más Baratas y Alacena</title>
+    <title>Comparador de Precios Top 5 y Alacena Inteligente</title>
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <style>
         body {
@@ -22,6 +22,7 @@
             margin-bottom: 20px;
         }
         h1 { margin-top: 0; color: #2c3e50; font-size: 24px; }
+        h2 { margin-top: 0; color: #2c3e50; font-size: 20px; }
         label { font-weight: bold; display: block; margin-bottom: 8px; }
         
         .input-group {
@@ -51,14 +52,15 @@
         button:hover { background-color: #2471a3; }
         button:disabled { background-color: #95a5a6; cursor: not-allowed; }
         
-        .btn-scanner {
-            background-color: #e67e22;
-            width: auto;
-            padding: 10px 15px;
-        }
+        .btn-scanner { background-color: #e67e22; width: auto; padding: 10px 15px; }
         .btn-scanner:hover { background-color: #d35400; }
         
-        /* Contenedor de la cámara */
+        .btn-secundario { background-color: #7f8c8d; margin-bottom: 10px; }
+        .btn-secundario:hover { background-color: #95a5a6; }
+        
+        .btn-accion-alacena { background-color: #27ae60; margin-top: 10px; }
+        .btn-accion-alacena:hover { background-color: #219653; }
+        
         #reader {
             width: 100%;
             background: #000;
@@ -82,7 +84,6 @@
             justify-content: space-between;
             align-items: center;
         }
-        /* Variaciones de color por cadena */
         .sucursal-item.carrefour { border-left-color: #00469b; }
         .sucursal-item.carrefour .badge-pos { background: #00469b; }
         .sucursal-item.masonline { border-left-color: #f1c40f; }
@@ -101,8 +102,17 @@
             font-weight: bold;
             font-size: 14px;
         }
-        .precio-tag { font-size: 20px; font-weight: bold; color: #2c3e50; }
+        .precio-tag { font-size: 20px; font-weight: bold; color: #2c3e50; text-align: right; }
         .error { color: #c0392b; background: #f9ebea; padding: 10px; border-radius: 4px; margin-top: 15px; }
+
+        .selector-cantidad {
+            padding: 5px;
+            font-size: 14px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            margin-right: 5px;
+            width: 60px;
+        }
 
         .btn-anadir {
             background-color: #2ecc71;
@@ -122,7 +132,7 @@
         .alacena-item {
             background: #fdfefe;
             border: 1px solid #e2e8f0;
-            padding: 10px 15px;
+            padding: 12px 15px;
             margin-bottom: 8px;
             border-radius: 4px;
             display: flex;
@@ -162,19 +172,24 @@
             padding: 12px;
             border-radius: 4px;
             font-size: 12px;
-            max-height: 180px;
+            max-height: 150px;
             overflow-y: auto;
             margin-top: 15px;
         }
         .log-line { margin: 3px 0; }
         .log-success { color: #2ecc71; }
         .log-error { color: #e74c3c; }
+        
+        .flex-buttons {
+            display: flex;
+            gap: 10px;
+        }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <h1>Comparador: Top 3 Sucursales Más Baratas</h1>
+    <h1>Comparador: Top 5 Sucursales Más Baratas</h1>
     
     <div id="geoStatus" class="status">Obteniendo tu ubicación actual...</div>
     
@@ -196,13 +211,18 @@
 
     <div id="resultado">
         <h3>Producto: <span id="prodNombre" style="color:#2980b9;">-</span></h3>
-        <p><small>Resultados ordenados del más barato al más caro (Top 3)</small></p>
+        <p><small>Resultados filtrados en un radio de 30 KM ordenados por menor precio (Top 5)</small></p>
         <div id="listaSucursales"></div>
     </div>
 </div>
 
 <div class="card">
     <h2>Mi Alacena 🛒</h2>
+    <div class="flex-buttons">
+        <button id="btnActualizarLista" class="btn-secundario">🔄 Actualizar Precios de la Lista</button>
+        <button id="btnExportarLista" class="btn-accion-alacena" style="margin-top:0;">📥 Exportar Lista de Compra</button>
+    </div>
+    
     <ul id="listaAlacena" class="alacena-lista"></ul>
     <div class="alacena-total">
         <span>Monto Total:</span>
@@ -222,6 +242,8 @@
     const geoStatus = document.getElementById('geoStatus');
     const btnBuscar = document.getElementById('btnBuscar');
     const btnEscanear = document.getElementById('btnEscanear');
+    const btnExportarLista = document.getElementById('btnExportarLista');
+    const btnActualizarLista = document.getElementById('btnActualizarLista');
     const errorBox = document.getElementById('errorBox');
     const resultadoDiv = document.getElementById('resultado');
     const listaSucursales = document.getElementById('listaSucursales');
@@ -278,75 +300,55 @@
 
     async function fetchViaProxies(targetUrl, nombreApi) {
         try {
-            logTecnico(`[${nombreApi}] Intentando Canal 1 (CORSProxy.io)...`);
             const response = await fetchWithTimeout(`https://corsproxy.io/?${encodeURIComponent(targetUrl)}`);
             if (response.ok) {
                 const text = await response.text();
-                if (!text.trim().startsWith("<") && !text.toLowerCase().includes("cloudflare")) {
-                    return JSON.parse(text);
-                }
+                if (!text.trim().startsWith("<") && !text.toLowerCase().includes("cloudflare")) return JSON.parse(text);
             }
-        } catch (e) { logTecnico(`[${nombreApi}] Canal 1 falló.`, "error"); }
+        } catch (e) {}
 
         try {
-            logTecnico(`[${nombreApi}] Intentando Canal 2 (AllOrigins)...`);
             const response = await fetchWithTimeout(`https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`);
             if (response.ok) {
                 const text = await response.text();
-                if (!text.trim().startsWith("<") && !text.toLowerCase().includes("cloudflare")) {
-                    return JSON.parse(text);
-                }
+                if (!text.trim().startsWith("<") && !text.toLowerCase().includes("cloudflare")) return JSON.parse(text);
             }
-        } catch (e) { logTecnico(`[${nombreApi}] Canal 2 falló.`, "error"); }
+        } catch (e) {}
 
         try {
-            logTecnico(`[${nombreApi}] Intentando Canal 3 (Codetabs)...`);
             const response = await fetchWithTimeout(`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`);
             if (response.ok) {
                 const text = await response.text();
-                if (!text.trim().startsWith("<") && !text.toLowerCase().includes("cloudflare")) {
-                    return JSON.parse(text);
-                }
+                if (!text.trim().startsWith("<") && !text.toLowerCase().includes("cloudflare")) return JSON.parse(text);
             }
-        } catch (e) { logTecnico(`[${nombreApi}] Canal 3 falló.`, "error"); }
+        } catch (e) {}
 
-        throw new Error(`No se pudo conectar con la API de ${nombreApi}.`);
+        throw new Error(`Error de conexión con ${nombreApi}.`);
     }
 
-    // LÓGICA DEL ESCÁNER DE CÁMARA
+    // ESCÁNER DE CÁMARA
     btnEscanear.addEventListener('click', () => {
-        if (readerDiv.style.display === "block") {
-            detenerEscaneo();
-        } else {
-            empezarEscaneo();
-        }
+        if (readerDiv.style.display === "block") detenerEscaneo(); else empezarEscaneo();
     });
 
     function empezarEscaneo() {
         readerDiv.style.display = "block";
         btnEscanear.innerText = "🛑 Detener";
-        
         html5QrcodeScanner = new Html5Qrcode("reader");
         const config = { fps: 10, qrbox: { width: 250, height: 150 } };
         
-        // Pide permisos dinámicamente y activa la cámara trasera preferentemente
         html5QrcodeScanner.start(
             { facingMode: "environment" }, 
             config,
             (decodedText) => {
-                // Al detectar éxito
                 document.getElementById('idProducto').value = decodedText;
                 logTecnico(`Código escaneado: ${decodedText}`, "success");
                 detenerEscaneo();
-                btnBuscar.click(); // Dispara la búsqueda automáticamente
+                btnBuscar.click();
             },
-            (errorMessage) => {
-                // Falla silenciosa de lectura cuadro a cuadro (esperable mientras busca el código)
-            }
+            () => {}
         ).catch(err => {
-            logTecnico("Error o denegación de permisos de cámara.", "error");
-            errorBox.innerText = "Permiso de cámara denegado o dispositivo no disponible.";
-            errorBox.style.display = "block";
+            logTecnico("Error de permisos de cámara.", "error");
             detenerEscaneo();
         });
     }
@@ -357,28 +359,46 @@
                 html5QrcodeScanner = null;
                 readerDiv.style.display = "none";
                 btnEscanear.innerText = "📷 Escanear";
-            }).catch(err => console.error(err));
+            }).catch(() => {});
         } else {
             readerDiv.style.display = "none";
             btnEscanear.innerText = "📷 Escanear";
         }
     }
 
-    function seleccionarYAgregar(index) {
+    // LÓGICA DE GESTIÓN DE LA ALACENA
+    function seleccionarYAgregar(index, eanProducto) {
         const opcionSeleccionada = opcionesActuales[index];
         if (!opcionSeleccionada) return;
 
-        const itemAlacena = {
-            id: Date.now(), 
-            producto: productoActualNombre,
-            sucursal: opcionSeleccionada.nombre,
-            direccion: opcionSeleccionada.direccion,
-            precio: opcionSeleccionada.precio
-        };
+        const inputCant = document.getElementById(`cant-${index}`);
+        const cantidad = parseInt(inputCant.value) || 1;
+
+        // Si ya existe el producto con el mismo EAN, se suma la cantidad o se actualiza
+        const indexExistente = alacena.findIndex(item => item.ean === eanProducto);
         
-        alacena.push(itemAlacena);
+        if (indexExistente > -1) {
+            alacena[indexExistente].cantidad += cantidad;
+            alacena[indexExistente].sucursal = opcionSeleccionada.nombre;
+            alacena[indexExistente].direccion = opcionSeleccionada.direccion;
+            alacena[indexExistente].precio = opcionSeleccionada.precio;
+            alacena[indexExistente].producto = productoActualNombre;
+        } else {
+            const itemAlacena = {
+                id: Date.now(), 
+                ean: eanProducto,
+                producto: productoActualNombre,
+                sucursal: opcionSeleccionada.nombre,
+                direccion: opcionSeleccionada.direccion,
+                precio: opcionSeleccionada.precio,
+                cantidad: cantidad
+            };
+            alacena.push(itemAlacena);
+        }
+        
         localStorage.setItem('miAlacena', JSON.stringify(alacena));
         actualizarVistaAlacena();
+        alert("Producto añadido/actualizado en la alacena.");
     }
 
     function eliminarDeAlacena(id) {
@@ -392,16 +412,21 @@
         let totalAcumulado = 0;
 
         alacena.forEach(item => {
-            totalAcumulado += item.precio;
+            const subtotal = item.precio * item.cantidad;
+            totalAcumulado += subtotal;
             const li = document.createElement('li');
             li.className = "alacena-item";
             li.innerHTML = `
                 <div>
-                    <strong>${item.producto}</strong><br>
-                    <span style="font-size: 12px; color: #555;">📍 Lg: ${item.sucursal} (${item.direccion})</span>
+                    <strong>${item.producto}</strong> <small style="color:#7f8c8d;">(x${item.cantidad})</small><br>
+                    <span style="font-size: 12px; font-weight: bold; color: #e67e22;">🆔 EAN: ${item.ean}</span><br>
+                    <span style="font-size: 11px; color: #555;">📍 Lg: ${item.sucursal} (${item.direccion})</span>
                 </div>
                 <div style="display: flex; align-items: center;">
-                    <div class="precio-tag" style="font-size: 16px;">$${item.precio.toLocaleString('es-AR', {minimumFractionDigits: 2})}</div>
+                    <div class="precio-tag" style="font-size: 15px;">
+                        $${subtotal.toLocaleString('es-AR', {minimumFractionDigits: 2})}<br>
+                        <small style="font-size:11px; font-weight:normal; color:#7f8c8d;">c/u: $${item.precio.toLocaleString('es-AR')}</small>
+                    </div>
                     <button class="btn-eliminar" onclick="eliminarDeAlacena(${item.id})">✖</button>
                 </div>
             `;
@@ -411,25 +436,52 @@
         montoTotalAlacena.innerText = `$${totalAcumulado.toLocaleString('es-AR', {minimumFractionDigits: 2})}`;
     }
 
+    // EXPORTAR LISTA DE COMPRAS
+    btnExportarLista.addEventListener('click', () => {
+        if (alacena.length === 0) return alert("La alacena está vacía.");
+        
+        let contenidoTxt = `=== LISTA DE COMPRAS / MI ALACENA ===\n`;
+        contenidoTxt += `Generado el: ${new Date().toLocaleString('es-AR')}\n`;
+        contenidoTxt += `=====================================\n\n`;
+        
+        let granTotal = 0;
+        alacena.forEach((item, index) => {
+            const subtotal = item.precio * item.cantidad;
+            granTotal += subtotal;
+            contenidoTxt += `${index + 1}. ${item.producto}\n`;
+            contenidoTxt += `   EAN: ${item.ean}\n`;
+            contenidoTxt += `   Cantidad: ${item.cantidad} unidades\n`;
+            contenidoTxt += `   Precio unitario: $${item.precio.toFixed(2)}\n`;
+            contenidoTxt += `   Subtotal: $${subtotal.toFixed(2)}\n`;
+            contenidoTxt += `   Comprar en: ${item.sucursal} (${item.direccion})\n`;
+            contenidoTxt += `-------------------------------------\n`;
+        });
+        
+        contenidoTxt += `\nMONTO TOTAL ESTIMADO: $${granTotal.toFixed(2)}\n`;
+        
+        const blob = new Blob([contenidoTxt], { type: "text/plain;charset=utf-8" });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = `Lista_De_Compras_${new Date().toISOString().slice(0,10)}.txt`;
+        link.click();
+    });
+
+    // PARSEO DE RESPUESTAS VTEX
     function procesarRespuestaVtex(data) {
         if (!data) return null;
         try {
             let products = data.products || (Array.isArray(data) ? data : []);
             if (products.length === 0) return null;
-
             const prod = products[0];
             const brand = prod.brand || "";
             const prodName = prod.productName || "Desconocido";
             const completeName = brand ? `${brand} - ${prodName}` : prodName;
-
             let spotPrice = null;
             if (prod.priceRange?.sellingPrice) spotPrice = prod.priceRange.sellingPrice.lowPrice;
-
             if ((spotPrice === null || spotPrice === undefined || spotPrice === 0) && prod.items?.[0]?.sellers?.[0]) {
                 const offer = prod.items[0].sellers[0].commertialOffer;
                 if (offer) spotPrice = offer.spotPrice || offer.Price || null;
             }
-
             if (spotPrice !== null && spotPrice !== undefined && spotPrice > 0) {
                 return { name: completeName, price: parseFloat(spotPrice) };
             }
@@ -437,95 +489,102 @@
         } catch (err) { return null; }
     }
 
+    // MOTOR DE BÚSQUEDA INTEGRADO DE PRODUCTOS
+    async function realizarBusquedaDePrecios(ean) {
+        let opciones = [];
+        let nombreDetectado = "Producto";
+
+        const urlPreciosClaros = `https://d3e6htiiul5ek9.cloudfront.net/prod/producto?limit=50&id_producto=${ean}&lat=${miLatitud}&lng=${miLongitud}`;
+        const timestamp = Date.now();
+        const urlCarrefour = `https://www.carrefour.com.ar/api/io/_v/api/intelligent-search/product_search?query=${ean}&_nocache=${timestamp}`;
+        const urlMasOnline = `https://www.masonline.com.ar/api/io/_v/api/intelligent-search/product_search?query=${ean}&_nocache=${timestamp}`;
+        const urlVea = `https://www.vea.com.ar/api/io/_v/api/intelligent-search/product_search?query=${ean}&_nocache=${timestamp}`;
+        const urlDia = `https://diaonline.supermercadosdia.com.ar/api/io/_v/api/intelligent-search/product_search?query=${ean}&_nocache=${timestamp}`;
+
+        const [resPrecios, resCarrefour, resMasOnline, resVea, resDia] = await Promise.allSettled([
+            fetchViaProxies(urlPreciosClaros, "Precios Claros"),
+            fetchViaProxies(urlCarrefour, "Carrefour"),
+            fetchViaProxies(urlMasOnline, "MasOnline"),
+            fetchViaProxies(urlVea, "Vea"),
+            fetchViaProxies(urlDia, "Dia")
+        ]);
+
+        if (resPrecios.status === "fulfilled" && resPrecios.value) {
+            const data = resPrecios.value;
+            if (data.producto?.nombre) nombreDetectado = data.producto.nombre;
+            let sucursalesExtraidas = data.sucursales || data.producto?.sucursales || [];
+            
+            sucursalesExtraidas.forEach(suc => {
+                if (!suc.message && suc.preciosProducto) {
+                    const precio = suc.preciosProducto.precioLista || suc.preciosProducto.precio_unitario_con_iva;
+                    const dist = calcularDistancia(miLatitud, miLongitud, parseFloat(suc.lat), parseFloat(suc.lng));
+                    
+                    // FILTRO REQUERIDO: Radio menor o igual a 30 Kilómetros
+                    if (precio && parseFloat(precio) > 0 && dist <= 30) {
+                        opciones.push({
+                            cadena: "PreciosClaros",
+                            nombre: `${suc.banderaDescripcion || 'Sucursal'} (${suc.sucursalNombre || 'S/N'})`,
+                            direccion: suc.direccion || "Dirección no disponible",
+                            distancia: dist,
+                            precio: parseFloat(precio)
+                        });
+                    }
+                }
+            });
+        }
+
+        const tiendasVtex = [
+            { respuesta: resCarrefour, nombreId: "Carrefour", etiqueta: "Carrefour Digital" },
+            { respuesta: resMasOnline, nombreId: "masonline", etiqueta: "MasOnline Digital" },
+            { respuesta: resVea, nombreId: "vea", etiqueta: "Vea Digital" },
+            { respuesta: resDia, nombreId: "dia", etiqueta: "Dia Online" }
+        ];
+
+        tiendasVtex.forEach(tienda => {
+            if (tienda.respuesta.status === "fulfilled" && tienda.respuesta.value) {
+                const itemProcesado = procesarRespuestaVtex(tienda.respuesta.value);
+                if (itemProcesado) {
+                    if (nombreDetectado === "Producto") nombreDetectado = itemProcesado.name;
+                    opciones.push({
+                        cadena: tienda.nombreId,
+                        nombre: tienda.etiqueta,
+                        direccion: "Tienda Digital / Envío",
+                        distancia: null, 
+                        precio: itemProcesado.price
+                    });
+                }
+            }
+        });
+
+        // Ordenamiento ascendente de precios
+        opciones.sort((a, b) => a.precio - b.precio);
+        return { nombre: nombreDetectado, opciones: opciones };
+    }
+
+    // DISPARADOR BOTÓN BUSCAR PRINCIPAL
     btnBuscar.addEventListener('click', async () => {
         const ean = document.getElementById('idProducto').value.trim();
         if (!ean) return alert("Ingresa un código de barras.");
 
         listaSucursales.innerHTML = "";
         errorBox.style.display = 'none';
-        btnBuscar.innerText = "Buscando en servidores...";
+        btnBuscar.innerText = "Buscando en servidores (Radio 30KM)...";
         btnBuscar.disabled = true;
         debugPanel.innerHTML = "";
 
-        opcionesActuales = [];
-        productoActualNombre = "Producto";
-
-        // Declaración de URLs de consulta
-        const urlPreciosClaros = `https://d3e6htiiul5ek9.cloudfront.net/prod/producto?limit=30&id_producto=${ean}&lat=${miLatitud}&lng=${miLongitud}`;
-        const urlCarrefour = `https://www.carrefour.com.ar/api/io/_v/api/intelligent-search/product_search?query=${ean}&_nocache=${Date.now()}`;
-        const urlMasOnline = `https://www.masonline.com.ar/api/io/_v/api/intelligent-search/product_search?query=${ean}&_nocache=${Date.now()}`;
-        const urlVea = `https://www.vea.com.ar/api/io/_v/api/intelligent-search/product_search?query=${ean}&_nocache=${Date.now()}`;
-        const urlDia = `https://diaonline.supermercadosdia.com.ar/api/io/_v/api/intelligent-search/product_search?query=${ean}&_nocache=${Date.now()}`;
-
         try {
-            // Ejecución paralela de las 5 consultas de red protegidas por los proxies
-            const [resPrecios, resCarrefour, resMasOnline, resVea, resDia] = await Promise.allSettled([
-                fetchViaProxies(urlPreciosClaros, "Precios Claros"),
-                fetchViaProxies(urlCarrefour, "Carrefour"),
-                fetchViaProxies(urlMasOnline, "MasOnline"),
-                fetchViaProxies(urlVea, "Vea"),
-                fetchViaProxies(urlDia, "Dia")
-            ]);
+            const resultado = await realizarBusquedaDePrecios(ean);
+            productoActualNombre = resultado.nombre;
+            opcionesActuales = resultado.opciones;
 
-            // 1. Procesar Precios Claros
-            if (resPrecios.status === "fulfilled" && resPrecios.value) {
-                const data = resPrecios.value;
-                if (data.producto?.nombre) productoActualNombre = data.producto.nombre;
-                let sucursalesExtraidas = data.sucursales || data.producto?.sucursales || [];
-                
-                sucursalesExtraidas.forEach(suc => {
-                    if (!suc.message && suc.preciosProducto) {
-                        const precio = suc.preciosProducto.precioLista || suc.preciosProducto.precio_unitario_con_iva;
-                        const dist = calcularDistancia(miLatitud, miLongitud, parseFloat(suc.lat), parseFloat(suc.lng));
-                        
-                        if (precio && parseFloat(precio) > 0) {
-                            opcionesActuales.push({
-                                cadena: "PreciosClaros",
-                                nombre: `${suc.banderaDescripcion || 'Sucursal'} (${suc.sucursalNombre || 'S/N'})`,
-                                direccion: suc.direccion || "Dirección no disponible",
-                                distancia: dist,
-                                precio: parseFloat(precio)
-                            });
-                        }
-                    }
-                });
-                logTecnico("Precios Claros procesado con éxito.", "success");
-            }
+            // FILTRO REQUERIDO: Extraer solo las mejores 5 opciones
+            const top5 = opcionesActuales.slice(0, 5);
 
-            // Mapeo helper para procesar las tiendas VTEX fácilmente
-            const tiendasVtex = [
-                { respuesta: resCarrefour, nombreId: "Carrefour", etiqueta: "Carrefour Digital" },
-                { respuesta: resMasOnline, nombreId: "masonline", etiqueta: "MasOnline Digital" },
-                { respuesta: resVea, nombreId: "vea", etiqueta: "Vea Digital" },
-                { respuesta: resDia, nombreId: "dia", etiqueta: "Dia Online" }
-            ];
-
-            // 2. Procesar dinámicamente el resto de las tiendas digitales
-            tiendasVtex.forEach(tienda => {
-                if (tienda.respuesta.status === "fulfilled" && tienda.respuesta.value) {
-                    const itemProcesado = procesarRespuestaVtex(tienda.respuesta.value);
-                    if (itemProcesado) {
-                        if (productoActualNombre === "Producto") productoActualNombre = itemProcesado.name;
-                        opcionesActuales.push({
-                            cadena: tienda.nombreId,
-                            nombre: tienda.etiqueta,
-                            direccion: "Tienda Digital / Envío",
-                            distancia: null, 
-                            precio: itemProcesado.price
-                        });
-                        logTecnico(`${tienda.etiqueta} procesado con éxito.`, "success");
-                    }
-                }
-            });
-
-            // Ordenamiento por menor precio
-            opcionesActuales.sort((a, b) => a.precio - b.precio);
-            const top3 = opcionesActuales.slice(0, 3);
-
-            if (top3.length > 0) {
+            if (top5.length > 0) {
                 document.getElementById('prodNombre').innerText = productoActualNombre;
+                logTecnico(`Se encontraron ${opcionesActuales.length} opciones en rango. Mostrando el Top 5.`, "success");
                 
-                top3.forEach((suc, index) => {
+                top5.forEach((suc, index) => {
                     const claseCadena = suc.cadena.toLowerCase();
                     const distTexto = suc.distancia ? `${suc.distancia.toFixed(2)} KM` : "Envío Digital / N/A";
                     
@@ -535,7 +594,10 @@
                                 <p><span class="badge-pos">#${index + 1}</span> <strong>${suc.nombre}</strong></p>
                                 <p><small>📍 Dirección: ${suc.direccion}</small></p>
                                 <p><small>🚗 Distancia a tu posición: ${distTexto}</small></p>
-                                <button class="btn-anadir" onclick="seleccionarYAgregar(${index})">➕ Elegir esta opción</button>
+                                <div style="margin-top:8px; display:flex; align-items:center;">
+                                    <input type="number" id="cant-${index}" class="selector-cantidad" value="1" min="1">
+                                    <button class="btn-anadir" onclick="seleccionarYAgregar(${index}, '${ean}')">➕ Añadir a Alacena</button>
+                                </div>
                             </div>
                             <div class="precio-tag">$${suc.precio.toLocaleString('es-AR', {minimumFractionDigits: 2})}</div>
                         </div>
@@ -545,9 +607,8 @@
 
                 resultadoDiv.style.display = 'block';
             } else {
-                throw new Error("No se encontraron ofertas con precios legibles para este código de barras.");
+                throw new Error("No se encontraron sucursales a menos de 30 KM ni stock digital con precios válidos.");
             }
-
         } catch (err) {
             errorBox.innerText = err.message;
             errorBox.style.display = 'block';
@@ -556,6 +617,44 @@
             btnBuscar.innerText = "Buscar y Calcular Precios";
             btnBuscar.disabled = false;
         }
+    });
+
+    // ACTUALIZACIÓN COMPLETA DE PRECIOS EN LA ALACENA
+    btnActualizarLista.addEventListener('click', async () => {
+        if (alacena.length === 0) return alert("No hay productos en la alacena para actualizar.");
+        
+        btnActualizarLista.innerText = "🔄 Actualizando toda la lista...";
+        btnActualizarLista.disabled = true;
+        logTecnico("Iniciando actualización general de precios...", "info");
+
+        // Recorremos cada elemento guardado para refrescar su valor según mercado actual
+        for (let i = 0; i < alacena.length; i++) {
+            const item = alacena[i];
+            logTecnico(`Actualizando: ${item.producto} (${item.ean})...`);
+            try {
+                const res = await realizarBusquedaDePrecios(item.ean);
+                if (res.opciones && res.opciones.length > 0) {
+                    const mejorOpcion = res.opciones[0]; // La más barata ordenada
+                    
+                    alacena[i].precio = mejorOpcion.price || mejorOpcion.precio;
+                    alacena[i].sucursal = mejorOpcion.nombre;
+                    alacena[i].direccion = mejorOpcion.direccion;
+                    if(res.nombre !== "Producto") alacena[i].producto = res.nombre;
+                    
+                    logTecnico(`-> Actualizado con éxito: Nuevo mínimo $${alacena[i].precio}`, "success");
+                } else {
+                    logTecnico(`-> No se encontraron ofertas actuales para ${item.ean}`, "error");
+                }
+            } catch (e) {
+                logTecnico(`-> Error al actualizar EAN ${item.ean}`, "error");
+            }
+        }
+
+        localStorage.setItem('miAlacena', JSON.stringify(alacena));
+        actualizarVistaAlacena();
+        btnActualizarLista.innerText = "🔄 Actualizar Precios de la Lista";
+        btnActualizarLista.disabled = false;
+        alert("¡Precios de la alacena sincronizados con éxito!");
     });
 </script>
 
