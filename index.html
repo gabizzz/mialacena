@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Comparador de Precios Top 5 y Alacena Inteligente</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <style>
         body {
@@ -48,6 +49,7 @@
             border-radius: 4px;
             cursor: pointer;
             width: 100%;
+            transition: background 0.2s;
         }
         button:hover { background-color: #2471a3; }
         button:disabled { background-color: #95a5a6; cursor: not-allowed; }
@@ -106,12 +108,13 @@
         .error { color: #c0392b; background: #f9ebea; padding: 10px; border-radius: 4px; margin-top: 15px; }
 
         .selector-cantidad {
-            padding: 5px;
+            padding: 6px;
             font-size: 14px;
             border-radius: 4px;
             border: 1px solid #ccc;
             margin-right: 5px;
-            width: 60px;
+            width: 65px;
+            box-sizing: border-box;
         }
 
         .btn-anadir {
@@ -172,7 +175,7 @@
             padding: 12px;
             border-radius: 4px;
             font-size: 12px;
-            max-height: 150px;
+            max-height: 120px;
             overflow-y: auto;
             margin-top: 15px;
         }
@@ -180,13 +183,37 @@
         .log-success { color: #2ecc71; }
         .log-error { color: #e74c3c; }
         
-        .flex-buttons {
+        .flex-buttons { display: flex; gap: 10px; }
+
+        /* Estilos CSS para el contenedor Toast */
+        #toast {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-100px);
+            background-color: #2c3e50;
+            color: #fff;
+            padding: 12px 24px;
+            border-radius: 30px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.25);
             display: flex;
+            align-items: center;
             gap: 10px;
+            z-index: 9999;
+            opacity: 0;
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s;
+            pointer-events: none;
+            font-weight: 500;
         }
+        #toast-icon { color: #f1c40f; }
     </style>
 </head>
 <body>
+
+<div id="toast">
+    <i id="toast-icon" class="fa-solid fa-circle-info"></i>
+    <span id="toast-msg"></span>
+</div>
 
 <div class="card">
     <h1>Comparador: Top 5 Sucursales Más Baratas</h1>
@@ -216,11 +243,11 @@
     </div>
 </div>
 
-<div class="card">
+<div class="card" id="seccion-alacena">
     <h2>Mi Alacena 🛒</h2>
     <div class="flex-buttons">
-        <button id="btnActualizarLista" class="btn-secundario">🔄 Actualizar Precios de la Lista</button>
-        <button id="btnExportarLista" class="btn-accion-alacena" style="margin-top:0;">📥 Exportar Lista de Compra</button>
+        <button id="btnActualizarLista" class="btn-secundario">🔄 Actualizar Precios</button>
+        <button id="btnCompartirLista" class="btn-accion-alacena" style="margin-top:0;">📤 Compartir Lista</button>
     </div>
     
     <ul id="listaAlacena" class="alacena-lista"></ul>
@@ -242,7 +269,7 @@
     const geoStatus = document.getElementById('geoStatus');
     const btnBuscar = document.getElementById('btnBuscar');
     const btnEscanear = document.getElementById('btnEscanear');
-    const btnExportarLista = document.getElementById('btnExportarLista');
+    const btnCompartirLista = document.getElementById('btnCompartirLista');
     const btnActualizarLista = document.getElementById('btnActualizarLista');
     const errorBox = document.getElementById('errorBox');
     const resultadoDiv = document.getElementById('resultado');
@@ -253,6 +280,24 @@
     const readerDiv = document.getElementById('reader');
 
     actualizarVistaAlacena();
+
+    // FUNCIÓN MOSTRAR TOAST REQUERIDA
+    function mostrarToast(mensaje, icono = "fa-circle-info") {
+        const toast = document.getElementById('toast');
+        const toastMsg = document.getElementById('toast-msg');
+        const toastIcon = document.getElementById('toast-icon');
+
+        toastIcon.className = `fa-solid ${icono}`;
+        toastMsg.innerText = mensaje;
+
+        toast.style.transform = 'translateX(-50%) translateY(0)';
+        toast.style.opacity = '1';
+
+        setTimeout(() => {
+            toast.style.transform = 'translateX(-50%) translateY(-100px)';
+            toast.style.opacity = '0';
+        }, 3000);
+    }
 
     function logTecnico(mensaje, tipo = "info") {
         const p = document.createElement('p');
@@ -349,6 +394,7 @@
             () => {}
         ).catch(err => {
             logTecnico("Error de permisos de cámara.", "error");
+            mostrarToast("Permiso de cámara denegado.", "fa-ban");
             detenerEscaneo();
         });
     }
@@ -374,7 +420,6 @@
         const inputCant = document.getElementById(`cant-${index}`);
         const cantidad = parseInt(inputCant.value) || 1;
 
-        // Si ya existe el producto con el mismo EAN, se suma la cantidad o se actualiza
         const indexExistente = alacena.findIndex(item => item.ean === eanProducto);
         
         if (indexExistente > -1) {
@@ -398,13 +443,27 @@
         
         localStorage.setItem('miAlacena', JSON.stringify(alacena));
         actualizarVistaAlacena();
-        alert("Producto añadido/actualizado en la alacena.");
+        mostrarToast("Producto agregado a la alacena", "fa-basket-shopping");
+    }
+
+    // REQUERIMIENTO: PERMITIR CAMBIAR LA CANTIDAD DESDE LA LISTA
+    function cambiarCantidadLista(id, nuevaCantidad) {
+        const cantidad = parseInt(nuevaCantidad);
+        if (isNaN(cantidad) || cantidad < 1) return;
+        
+        const index = alacena.findIndex(item => item.id === id);
+        if (index > -1) {
+            alacena[index].cantidad = cantidad;
+            localStorage.setItem('miAlacena', JSON.stringify(alacena));
+            actualizarVistaAlacena();
+        }
     }
 
     function eliminarDeAlacena(id) {
         alacena = alacena.filter(item => item.id !== id);
         localStorage.setItem('miAlacena', JSON.stringify(alacena));
         actualizarVistaAlacena();
+        mostrarToast("Producto eliminado", "fa-trash");
     }
 
     function actualizarVistaAlacena() {
@@ -418,12 +477,13 @@
             li.className = "alacena-item";
             li.innerHTML = `
                 <div>
-                    <strong>${item.producto}</strong> <small style="color:#7f8c8d;">(x${item.cantidad})</small><br>
+                    <strong>${item.producto}</strong><br>
                     <span style="font-size: 12px; font-weight: bold; color: #e67e22;">🆔 EAN: ${item.ean}</span><br>
                     <span style="font-size: 11px; color: #555;">📍 Lg: ${item.sucursal} (${item.direccion})</span>
                 </div>
-                <div style="display: flex; align-items: center;">
-                    <div class="precio-tag" style="font-size: 15px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <input type="number" class="selector-cantidad" value="${item.cantidad}" min="1" onchange="cambiarCantidadLista(${item.id}, this.value)">
+                    <div class="precio-tag" style="font-size: 15px; min-width: 90px;">
                         $${subtotal.toLocaleString('es-AR', {minimumFractionDigits: 2})}<br>
                         <small style="font-size:11px; font-weight:normal; color:#7f8c8d;">c/u: $${item.precio.toLocaleString('es-AR')}</small>
                     </div>
@@ -436,35 +496,49 @@
         montoTotalAlacena.innerText = `$${totalAcumulado.toLocaleString('es-AR', {minimumFractionDigits: 2})}`;
     }
 
-    // EXPORTAR LISTA DE COMPRAS
-    btnExportarLista.addEventListener('click', () => {
-        if (alacena.length === 0) return alert("La alacena está vacía.");
-        
-        let contenidoTxt = `=== LISTA DE COMPRAS / MI ALACENA ===\n`;
-        contenidoTxt += `Generado el: ${new Date().toLocaleString('es-AR')}\n`;
-        contenidoTxt += `=====================================\n\n`;
-        
-        let granTotal = 0;
-        alacena.forEach((item, index) => {
-            const subtotal = item.precio * item.cantidad;
-            granTotal += subtotal;
-            contenidoTxt += `${index + 1}. ${item.producto}\n`;
-            contenidoTxt += `   EAN: ${item.ean}\n`;
-            contenidoTxt += `   Cantidad: ${item.cantidad} unidades\n`;
-            contenidoTxt += `   Precio unitario: $${item.precio.toFixed(2)}\n`;
-            contenidoTxt += `   Subtotal: $${subtotal.toFixed(2)}\n`;
-            contenidoTxt += `   Comprar en: ${item.sucursal} (${item.direccion})\n`;
-            contenidoTxt += `-------------------------------------\n`;
+    // REQUERIMIENTO: FUNCIÓN COMPARTIR ADAPTADA CON TU ESTRUCTURA
+    function compartirLista() {
+        if (alacena.length === 0) {
+            mostrarToast("No tienes productos en la alacena para compartir.", "fa-ban");
+            return;
+        }
+
+        let mensaje = `📝 *Lista de Compras (Alacena Inteligente)*\n📍 Coordenadas: ${miLatitud ? miLatitud.toFixed(3) : 'S/N'}, ${miLongitud ? miLongitud.toFixed(3) : 'S/N'}\n\n`;
+        let total = 0;
+
+        alacena.forEach(item => {
+            const costo = item.precio * item.cantidad;
+            total += costo;
+            mensaje += `• *${item.cantidad}x* ${item.producto}\n  🆔 EAN: ${item.ean}\n  Precio Sucursal: $${item.precio.toLocaleString('es-AR')} (Subtotal: $${costo.toLocaleString('es-AR')})\n  Lugar: ${item.sucursal} (${item.direccion})\n\n`;
         });
-        
-        contenidoTxt += `\nMONTO TOTAL ESTIMADO: $${granTotal.toFixed(2)}\n`;
-        
-        const blob = new Blob([contenidoTxt], { type: "text/plain;charset=utf-8" });
-        const link = document.createElement("a");
-        link.href = URL.createObjectURL(blob);
-        link.download = `Lista_De_Compras_${new Date().toISOString().slice(0,10)}.txt`;
-        link.click();
-    });
+
+        mensaje += `💵 *Total Estimado Lista:* $${total.toLocaleString('es-AR', {minimumFractionDigits: 2})}`;
+
+        if (navigator.share) {
+            navigator.share({
+                title: 'Mi Lista de Compras MultiTienda',
+                text: mensaje
+            }).catch(err => console.log(err));
+        } else {
+            const tempTextArea = document.createElement("textarea");
+            tempTextArea.value = mensaje;
+            document.body.appendChild(tempTextArea);
+            tempTextArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempTextArea);
+            
+            mostrarToast("¡Lista copiada al portapapeles!", "fa-copy");
+        }
+    }
+
+    btnCompartirLista.addEventListener('click', compartirLista);
+
+    function scrollToSection(sectionId) {
+        const element = document.getElementById(sectionId);
+        if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }
 
     // PARSEO DE RESPUESTAS VTEX
     function procesarRespuestaVtex(data) {
@@ -519,7 +593,6 @@
                     const precio = suc.preciosProducto.precioLista || suc.preciosProducto.precio_unitario_con_iva;
                     const dist = calcularDistancia(miLatitud, miLongitud, parseFloat(suc.lat), parseFloat(suc.lng));
                     
-                    // FILTRO REQUERIDO: Radio menor o igual a 30 Kilómetros
                     if (precio && parseFloat(precio) > 0 && dist <= 30) {
                         opciones.push({
                             cadena: "PreciosClaros",
@@ -556,7 +629,6 @@
             }
         });
 
-        // Ordenamiento ascendente de precios
         opciones.sort((a, b) => a.precio - b.precio);
         return { nombre: nombreDetectado, opciones: opciones };
     }
@@ -564,7 +636,7 @@
     // DISPARADOR BOTÓN BUSCAR PRINCIPAL
     btnBuscar.addEventListener('click', async () => {
         const ean = document.getElementById('idProducto').value.trim();
-        if (!ean) return alert("Ingresa un código de barras.");
+        if (!ean) return mostrarToast("Ingresa un código de barras.", "fa-circle-exclamation");
 
         listaSucursales.innerHTML = "";
         errorBox.style.display = 'none';
@@ -577,7 +649,6 @@
             productoActualNombre = resultado.nombre;
             opcionesActuales = resultado.opciones;
 
-            // FILTRO REQUERIDO: Extraer solo las mejores 5 opciones
             const top5 = opcionesActuales.slice(0, 5);
 
             if (top5.length > 0) {
@@ -593,10 +664,10 @@
                             <div class="sucursal-info">
                                 <p><span class="badge-pos">#${index + 1}</span> <strong>${suc.nombre}</strong></p>
                                 <p><small>📍 Dirección: ${suc.direccion}</small></p>
-                                <p><small>🚗 Distancia a tu posición: ${distTexto}</small></p>
+                                <p><small>🚗 Distancia: ${distTexto}</small></p>
                                 <div style="margin-top:8px; display:flex; align-items:center;">
                                     <input type="number" id="cant-${index}" class="selector-cantidad" value="1" min="1">
-                                    <button class="btn-anadir" onclick="seleccionarYAgregar(${index}, '${ean}')">➕ Añadir a Alacena</button>
+                                    <button class="btn-anadir" onclick="seleccionarYAgregar(${index}, '${ean}')">➕ Añadir</button>
                                 </div>
                             </div>
                             <div class="precio-tag">$${suc.precio.toLocaleString('es-AR', {minimumFractionDigits: 2})}</div>
@@ -606,13 +677,15 @@
                 });
 
                 resultadoDiv.style.display = 'block';
+                scrollToSection('resultado');
             } else {
-                throw new Error("No se encontraron sucursales a menos de 30 KM ni stock digital con precios válidos.");
+                throw new Error("No se encontraron sucursales a menos de 30 KM ni stock digital válido.");
             }
         } catch (err) {
             errorBox.innerText = err.message;
             errorBox.style.display = 'block';
             resultadoDiv.style.display = 'none';
+            mostrarToast("Búsqueda sin resultados.", "fa-circle-xmark");
         } finally {
             btnBuscar.innerText = "Buscar y Calcular Precios";
             btnBuscar.disabled = false;
@@ -621,40 +694,37 @@
 
     // ACTUALIZACIÓN COMPLETA DE PRECIOS EN LA ALACENA
     btnActualizarLista.addEventListener('click', async () => {
-        if (alacena.length === 0) return alert("No hay productos en la alacena para actualizar.");
+        if (alacena.length === 0) return mostrarToast("No hay productos en la alacena.", "fa-ban");
         
-        btnActualizarLista.innerText = "🔄 Actualizando toda la lista...";
+        btnActualizarLista.innerText = "🔄 Actualizando...";
         btnActualizarLista.disabled = true;
         logTecnico("Iniciando actualización general de precios...", "info");
 
-        // Recorremos cada elemento guardado para refrescar su valor según mercado actual
         for (let i = 0; i < alacena.length; i++) {
             const item = alacena[i];
-            logTecnico(`Actualizando: ${item.producto} (${item.ean})...`);
+            logTecnico(`Actualizando: ${item.producto}...`);
             try {
                 const res = await realizarBusquedaDePrecios(item.ean);
                 if (res.opciones && res.opciones.length > 0) {
-                    const mejorOpcion = res.opciones[0]; // La más barata ordenada
+                    const mejorOpcion = res.opciones[0];
                     
                     alacena[i].precio = mejorOpcion.price || mejorOpcion.precio;
                     alacena[i].sucursal = mejorOpcion.nombre;
                     alacena[i].direccion = mejorOpcion.direccion;
                     if(res.nombre !== "Producto") alacena[i].producto = res.nombre;
                     
-                    logTecnico(`-> Actualizado con éxito: Nuevo mínimo $${alacena[i].precio}`, "success");
-                } else {
-                    logTecnico(`-> No se encontraron ofertas actuales para ${item.ean}`, "error");
+                    logTecnico(`-> Nuevo mínimo: $${alacena[i].precio}`, "success");
                 }
             } catch (e) {
-                logTecnico(`-> Error al actualizar EAN ${item.ean}`, "error");
+                logTecnico(`-> Error en EAN ${item.ean}`, "error");
             }
         }
 
         localStorage.setItem('miAlacena', JSON.stringify(alacena));
         actualizarVistaAlacena();
-        btnActualizarLista.innerText = "🔄 Actualizar Precios de la Lista";
+        btnActualizarLista.innerText = "🔄 Actualizar Precios";
         btnActualizarLista.disabled = false;
-        alert("¡Precios de la alacena sincronizados con éxito!");
+        mostrarToast("¡Precios de la alacena actualizados!", "fa-circle-check");
     });
 </script>
 
