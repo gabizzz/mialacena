@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Top 3 Sucursales Más Baratas y Alacena Permanente</title>
+    <title>Top 3 Sucursales Más Baratas y Alacena</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -90,7 +90,6 @@
         }
         .alacena-item span { font-size: 14px; }
         
-        /* Estilo del nuevo botón Eliminar */
         .btn-eliminar {
             background-color: #e74c3c;
             color: white;
@@ -104,6 +103,7 @@
         }
         .btn-eliminar:hover { background-color: #c0392b; }
 
+        /* Logs técnicos de depuración */
         .debug-panel {
             background: #2c3e50;
             color: #ecf0f1;
@@ -153,8 +153,7 @@
     let miLatitud = null;
     let miLongitud = null;
     
-    // MODIFICACIÓN 1: Al iniciar, intentamos cargar la lista guardada en localStorage. 
-    // Si no hay nada guardado, iniciamos con un array vacío [].
+    // Cargar alacena inicial desde LocalStorage o empezar vacía
     let alacena = JSON.parse(localStorage.getItem('miAlacena')) || [];
 
     const geoStatus = document.getElementById('geoStatus');
@@ -165,9 +164,10 @@
     const listaAlacena = document.getElementById('listaAlacena');
     const debugPanel = document.getElementById('technical-debug-logs');
 
-    // Al cargar la página por primera vez, dibujamos lo que esté guardado en memoria
+    // Inicializar la vista de la alacena al cargar la página
     actualizarVistaAlacena();
 
+    // Auxiliar: Logger técnico en pantalla
     function logTecnico(mensaje, tipo = "info") {
         const p = document.createElement('p');
         p.className = `log-line log-${tipo}`;
@@ -176,6 +176,7 @@
         debugPanel.scrollTop = debugPanel.scrollHeight;
     }
 
+    // Auxiliar: Fetch con Timeout
     async function fetchWithTimeout(resource, options = {}, timeout = 5000) {
         const controller = new AbortController();
         const id = setTimeout(() => controller.abort(), timeout);
@@ -214,58 +215,49 @@
         return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))); 
     }
 
-    // LÓGICA DE ALACENA MODIFICADA
+    // Alacena Logic con LocalStorage
     function agregarAAlacena(nombreProducto, opcionMasBarata) {
         const itemAlacena = {
-            id: Date.now(), // Agregamos un ID único usando la fecha actual para poder borrarlo fácilmente
+            id: Date.now(), // ID único para poder borrar correctamente sin conflictos de nombres repetidos
             producto: nombreProducto,
             sucursal: opcionMasBarata.nombre,
             precio: opcionMasBarata.precio
         };
         alacena.push(itemAlacena);
-        
-        // MODIFICACIÓN 2: Guardamos el array actualizado en LocalStorage
-        localStorage.setItem('miAlacena', JSON.stringify(alacena));
-        
+        guardarAlacenaEnLocalStorage();
         actualizarVistaAlacena();
     }
 
-    // MODIFICACIÓN 3: Nueva función para eliminar un producto por su ID
-    function eliminarDeAlacena(idItem) {
-        // Filtramos la lista para dejar fuera el elemento con el ID seleccionado
-        alacena = alacena.filter(item => item.id !== idItem);
-        
-        // Actualizamos LocalStorage con la nueva lista filtrada
-        localStorage.setItem('miAlacena', JSON.stringify(alacena));
-        
-        // Volvemos a dibujar la lista en pantalla
+    function eliminarDeAlacena(id) {
+        alacena = alacena.filter(item => item.id !== id);
+        guardarAlacenaEnLocalStorage();
         actualizarVistaAlacena();
+    }
+
+    function guardarAlacenaEnLocalStorage() {
+        localStorage.setItem('miAlacena', JSON.stringify(alacena));
     }
 
     function actualizarVistaAlacena() {
         listaAlacena.innerHTML = "";
-        
-        if (alacena.length === 0) {
-            listaAlacena.innerHTML = "<li style='color: #7f8c8d; font-style: italic;'>Tu alacena está vacía.</li>";
-            return;
-        }
-
         alacena.forEach(item => {
             const li = document.createElement('li');
             li.className = "alacena-item";
             li.innerHTML = `
-                <div style="flex-grow: 1;">
+                <div>
                     <strong>${item.producto}</strong><br>
                     <span>Lugar: ${item.sucursal}</span>
                 </div>
-                <div class="precio-tag" style="font-size: 16px;">$${item.precio.toLocaleString('es-AR', {minimumFractionDigits: 2})}</div>
-                <button class="btn-eliminar" onclick="eliminarDeAlacena(${item.id})">❌</button>
+                <div style="display: flex; align-items: center;">
+                    <div class="precio-tag" style="font-size: 16px;">$${item.precio.toLocaleString('es-AR', {minimumFractionDigits: 2})}</div>
+                    <button class="btn-eliminar" onclick="eliminarDeAlacena(${item.id})">✖</button>
+                </div>
             `;
             listaAlacena.appendChild(li);
         });
     }
 
-    // FUNCIONES DE CARREFOUR
+    // Funciones de consulta a APIs
     async function fetchProductFromCarrefour(ean, postalCode = "2800") {
         const timestamp = Date.now();
         const targetUrl = `https://www.carrefour.com.ar/api/io/_v/api/intelligent-search/product_search?query=${ean}&postalCode=${postalCode}&_nocache=${timestamp}`;
@@ -273,6 +265,7 @@
         debugPanel.innerHTML = ""; 
         logTecnico(`URL objetivo: ${targetUrl}`);
 
+        // CANAL 1: CORSProxy.io
         try {
             const proxyUrl1 = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
             logTecnico("Intentando Canal 1 (CORSProxy.io)...");
@@ -283,13 +276,16 @@
                     throw new Error("Bloqueo de seguridad (Cloudflare) detectado.");
                 }
                 const jsonData = JSON.parse(textData);
-                logTecnico("Canal 1 exitoso.", "success");
+                logTecnico("Canal 1 exitoso y recibido.", "success");
                 return jsonData;
             } else {
                 throw new Error(`HTTP ${response.status}`);
             }
-        } catch (err) { logTecnico(`Canal 1 fallido: ${err.message}`, "error"); }
+        } catch (err) {
+            logTecnico(`Canal 1 fallido: ${err.message}`, "error");
+        }
 
+        // CANAL 2: AllOrigins RAW
         try {
             const proxyUrl2 = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
             logTecnico("Intentando Canal 2 (AllOrigins RAW)...");
@@ -302,9 +298,14 @@
                 const jsonData = JSON.parse(textData);
                 logTecnico("Canal 2 exitoso.", "success");
                 return jsonData;
-            } else { throw new Error(`HTTP ${response.status}`); }
-        } catch (err) { logTecnico(`Canal 2 fallido: ${err.message}`, "error"); }
+            } else {
+                throw new Error(`HTTP ${response.status}`);
+            }
+        } catch (err) {
+            logTecnico(`Canal 2 fallido: ${err.message}`, "error");
+        }
 
+        // CANAL 3: Codetabs
         try {
             const proxyUrl3 = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`;
             logTecnico("Intentando Canal 3 (Codetabs)...");
@@ -317,17 +318,24 @@
                 const jsonData = JSON.parse(textData);
                 logTecnico("Canal 3 exitoso.", "success");
                 return jsonData;
-            } else { throw new Error(`HTTP ${response.status}`); }
-        } catch (err) { logTecnico(`Canal 3 fallido: ${err.message}`, "error"); }
+            } else {
+                throw new Error(`HTTP ${response.status}`);
+            }
+        } catch (err) {
+            logTecnico(`Canal 3 fallido: ${err.message}`, "error");
+        }
 
-        throw new Error("Todos los canales proxy fallaron.");
+        throw new Error("Todos los canales de red proxy alternativos fallaron.");
     }
 
     function procesarRespuestaVtex(data) {
         if (!data) return null;
         try {
             let products = Array.isArray(data) ? data : (data.products || []);
-            if (products.length === 0) return null;
+            if (products.length === 0) {
+                logTecnico("API sin開oincidencias o sin stock para esta zona.", "error");
+                return null;
+            }
 
             const prod = products[0];
             const brand = prod.brand || "";
@@ -338,28 +346,38 @@
 
             if (prod.priceRange && prod.priceRange.sellingPrice) {
                 spotPrice = prod.priceRange.sellingPrice.lowPrice;
+                logTecnico(`Precio detectado en priceRange: $${spotPrice}`);
             }
 
-            if ((spotPrice === null || spotPrice === undefined) && prod.items && prod.items[0] && prod.items[0].sellers && prod.items[0].sellers[0]) {
+            if ((spotPrice === null || spotPrice === undefined || spotPrice === 0) && prod.items && prod.items[0] && prod.items[0].sellers && prod.items[0].sellers[0]) {
                 const seller = prod.items[0].sellers[0];
                 if (seller.commertialOffer) {
                     const offer = seller.commertialOffer;
-                    if (offer.spotPrice !== undefined && offer.spotPrice !== null) {
+                    if (offer.spotPrice !== undefined && offer.spotPrice !== null && offer.spotPrice !== 0) {
                         spotPrice = offer.spotPrice;
-                    } else if (offer.Price !== undefined && offer.Price !== null) {
+                    } else if (offer.Price !== undefined && offer.Price !== null && offer.Price !== 0) {
                         spotPrice = offer.Price;
                     }
                 }
             }
 
-            if (spotPrice !== null && spotPrice !== undefined) {
-                return { name: completeName, price: parseFloat(spotPrice) };
+            // Validación estricta: Si no tiene precio o es 0, no lo procesamos.
+            if (spotPrice !== null && spotPrice !== undefined && spotPrice > 0) {
+                return {
+                    name: completeName,
+                    price: parseFloat(spotPrice)
+                };
             }
+            
+            logTecnico(`El producto existe en Carrefour pero no registra precio disponible.`, "error");
             return null;
-        } catch (err) { return null; }
+        } catch (err) {
+            logTecnico(`Error al analizar datos internos: ${err.message}`, "error");
+            return null;
+        }
     }
 
-    // 3. Request Principal Geo-localizado
+    // 3. Request Principal Integrado
     btnBuscar.addEventListener('click', async () => {
         const ean = document.getElementById('idProducto').value.trim();
         if (!ean) return alert("Ingresa un código de barras.");
@@ -372,27 +390,27 @@
         let todasLasOpciones = [];
         let nombreProductoDetectado = "Producto";
 
-        const radioBusqueda = 5000; 
+        const radioBusqueda = 30000; 
         const urlPreciosClaros = `https://d3e6htiiul5ek9.cloudfront.net/prod/productos?id_producto=${ean}&lat=${miLatitud}&lng=${miLongitud}&radio=${radioBusqueda}&limit=30`;
-
+        
         try {
             const [resPrecios, resCarrefourRaw] = await Promise.allSettled([
                 fetch(urlPreciosClaros).then(r => r.json()),
                 fetchProductFromCarrefour(ean)
             ]);
 
-            // Parsear Precios Claros Geo
-            if (resPrecios.status === "fulfilled" && resPrecios.value) {
+            // Parsear Precios Claros
+            if (resPrecios.status === "fulfilled" && resPrecios.value && resPrecios.value.sucursales) {
                 const data = resPrecios.value;
                 if (data.producto && data.producto.nombre) nombreProductoDetectado = data.producto.nombre;
                 
-                const sucursalesEncontradas = data.sucursales || data.resultados || [];
-                
-                sucursalesEncontradas.forEach(suc => {
+                data.sucursales.forEach(suc => {
                     if (!suc.message && suc.preciosProducto) {
                         const precio = suc.preciosProducto.precioLista || suc.preciosProducto.precio_unitario_con_iva;
                         const dist = calcularDistancia(miLatitud, miLongitud, parseFloat(suc.lat), parseFloat(suc.lng));
-                        if (precio) {
+                        
+                        // Control: Sólo agregamos si el precio es un número real y mayor a 0
+                        if (precio && parseFloat(precio) > 0) {
                             todasLasOpciones.push({
                                 cadena: "PreciosClaros",
                                 nombre: `${suc.banderaDescripcion} (${suc.sucursalNombre})`,
@@ -408,6 +426,7 @@
             // Parsear Carrefour
             if (resCarrefourRaw.status === "fulfilled" && resCarrefourRaw.value) {
                 const itemProcesado = procesarRespuestaVtex(resCarrefourRaw.value);
+                // Si 'itemProcesado' es null por falta de precio, se ignora Carrefour automáticamente y continúa
                 if (itemProcesado) {
                     if (nombreProductoDetectado === "Producto") nombreProductoDetectado = itemProcesado.name;
 
@@ -421,7 +440,7 @@
                 }
             }
 
-            // Ordenar de Menor a Mayor
+            // Ordenar de Menor a Mayor Precio absoluto
             todasLasOpciones.sort((a, b) => a.precio - b.precio);
             const top3 = todasLasOpciones.slice(0, 3);
 
@@ -447,12 +466,12 @@
 
                 resultadoDiv.style.display = 'block';
 
-                // Selección del menor
+                // Guardamos en la alacena la opción más económica de las encontradas con precio válido
                 const opcionMasBarata = todasLasOpciones[0];
                 agregarAAlacena(nombreProductoDetectado, opcionMasBarata);
 
             } else {
-                throw new Error("No se obtuvieron registros de precios.");
+                throw new Error("El producto fue localizado pero no tiene precios válidos cargados en ninguna plataforma.");
             }
 
         } catch (err) {
