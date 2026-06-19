@@ -73,7 +73,6 @@
         .precio-tag { font-size: 20px; font-weight: bold; color: #2c3e50; }
         .error { color: #c0392b; background: #f9ebea; padding: 10px; border-radius: 4px; margin-top: 15px; }
 
-        /* Botón para añadir desde los resultados */
         .btn-anadir {
             background-color: #2ecc71;
             color: white;
@@ -103,7 +102,6 @@
             justify-content: space-between;
             align-items: center;
         }
-        .alacena-item span { font-size: 14px; }
         
         .btn-eliminar {
             background-color: #e74c3c;
@@ -118,7 +116,19 @@
         }
         .btn-eliminar:hover { background-color: #c0392b; }
 
-        /* Logs técnicos de depuración */
+        /* Total de la Alacena */
+        .alacena-total {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 2px dashed #bdc3c7;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 18px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
         .debug-panel {
             background: #2c3e50;
             color: #ecf0f1;
@@ -162,13 +172,15 @@
 <div class="card">
     <h2>Mi Alacena 🛒</h2>
     <ul id="listaAlacena" class="alacena-lista"></ul>
+    <div class="alacena-total">
+        <span>Monto Total:</span>
+        <span id="montoTotalAlacena">$0,00</span>
+    </div>
 </div>
 
 <script>
     let miLatitud = null;
     let miLongitud = null;
-    
-    // Almacenamiento temporal en memoria de la última búsqueda realizada
     let opcionesActuales = [];
     let productoActualNombre = "";
 
@@ -181,9 +193,10 @@
     const resultadoDiv = document.getElementById('resultado');
     const listaSucursales = document.getElementById('listaSucursales');
     const listaAlacena = document.getElementById('listaAlacena');
+    const montoTotalAlacena = document.getElementById('montoTotalAlacena');
     const debugPanel = document.getElementById('technical-debug-logs');
 
-    // Inicializar renderizado de la alacena guardada
+    // Renderizar al cargar la página
     actualizarVistaAlacena();
 
     function logTecnico(mensaje, tipo = "info") {
@@ -194,7 +207,7 @@
         debugPanel.scrollTop = debugPanel.scrollHeight;
     }
 
-    async function fetchWithTimeout(resource, options = {}, timeout = 5000) {
+    async function fetchWithTimeout(resource, options = {}, timeout = 6000) {
         const controller = new AbortController();
         const id = setTimeout(() => controller.abort(), timeout);
         const response = await fetch(resource, { ...options, signal: controller.signal });
@@ -231,7 +244,47 @@
         return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))); 
     }
 
-    // Alacena e Interacciones con LocalStorage
+    // Petición genérica multi-proxy para evitar bloqueos de CORS
+    async function fetchViaProxies(targetUrl, nombreApi) {
+        // Canal 1: CORSProxy.io
+        try {
+            logTecnico(`[${nombreApi}] Intentando Canal 1 (CORSProxy.io)...`);
+            const response = await fetchWithTimeout(`https://corsproxy.io/?${encodeURIComponent(targetUrl)}`);
+            if (response.ok) {
+                const text = await response.text();
+                if (!text.trim().startsWith("<") && !text.toLowerCase().includes("cloudflare")) {
+                    return JSON.parse(text);
+                }
+            }
+        } catch (e) { logTecnico(`[${nombreApi}] Canal 1 falló.`, "error"); }
+
+        // Canal 2: AllOrigins RAW
+        try {
+            logTecnico(`[${nombreApi}] Intentando Canal 2 (AllOrigins)...`);
+            const response = await fetchWithTimeout(`https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`);
+            if (response.ok) {
+                const text = await response.text();
+                if (!text.trim().startsWith("<") && !text.toLowerCase().includes("cloudflare")) {
+                    return JSON.parse(text);
+                }
+            }
+        } catch (e) { logTecnico(`[${nombreApi}] Canal 2 falló.`, "error"); }
+
+        // Canal 3: Codetabs
+        try {
+            logTecnico(`[${nombreApi}] Intentando Canal 3 (Codetabs)...`);
+            const response = await fetchWithTimeout(`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`);
+            if (response.ok) {
+                const text = await response.text();
+                if (!text.trim().startsWith("<") && !text.toLowerCase().includes("cloudflare")) {
+                    return JSON.parse(text);
+                }
+            }
+        } catch (e) { logTecnico(`[${nombreApi}] Canal 3 falló.`, "error"); }
+
+        throw new Error(`No se pudo conectar con la API de ${nombreApi} mediante ningún proxy.`);
+    }
+
     function seleccionarYAgregar(index) {
         const opcionSeleccionada = opcionesActuales[index];
         if (!opcionSeleccionada) return;
@@ -240,13 +293,13 @@
             id: Date.now(), 
             producto: productoActualNombre,
             sucursal: opcionSeleccionada.nombre,
+            direccion: opcionSeleccionada.direccion,
             precio: opcionSeleccionada.precio
         };
         
         alacena.push(itemAlacena);
         localStorage.setItem('miAlacena', JSON.stringify(alacena));
         actualizarVistaAlacena();
-        logTecnico(`Añadido a la alacena: ${productoActualNombre} desde ${opcionSeleccionada.nombre}`, "success");
     }
 
     function eliminarDeAlacena(id) {
@@ -257,13 +310,16 @@
 
     function actualizarVistaAlacena() {
         listaAlacena.innerHTML = "";
+        let totalAcumulado = 0;
+
         alacena.forEach(item => {
+            totalAcumulado += item.precio;
             const li = document.createElement('li');
             li.className = "alacena-item";
             li.innerHTML = `
                 <div>
                     <strong>${item.producto}</strong><br>
-                    <span>Lugar: ${item.sucursal}</span>
+                    <span style="font-size: 12px; color: #555;">📍 Lg: ${item.sucursal} (${item.direccion})</span>
                 </div>
                 <div style="display: flex; align-items: center;">
                     <div class="precio-tag" style="font-size: 16px;">$${item.precio.toLocaleString('es-AR', {minimumFractionDigits: 2})}</div>
@@ -272,65 +328,14 @@
             `;
             listaAlacena.appendChild(li);
         });
-    }
 
-    // Funciones de APIs de terceros
-    async function fetchProductFromCarrefour(ean, postalCode = "2800") {
-        const timestamp = Date.now();
-        const targetUrl = `https://www.carrefour.com.ar/api/io/_v/api/intelligent-search/product_search?query=${ean}&postalCode=${postalCode}&_nocache=${timestamp}`;
-        
-        debugPanel.innerHTML = ""; 
-        logTecnico(`URL objetivo: ${targetUrl}`);
-
-        // CANAL 1: CORSProxy.io
-        try {
-            const proxyUrl1 = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
-            logTecnico("Intentando Canal 1 (CORSProxy.io)...");
-            const response = await fetchWithTimeout(proxyUrl1, {}, 5000);
-            if (response.ok) {
-                const textData = await response.text();
-                if (textData.trim().startsWith("<") || textData.toLowerCase().includes("cloudflare") || textData.toLowerCase().includes("captcha")) {
-                    throw new Error("Bloqueo de seguridad detectado.");
-                }
-                return JSON.parse(textData);
-            } else { throw new Error(`HTTP ${response.status}`); }
-        } catch (err) { logTecnico(`Canal 1 fallido: ${err.message}`, "error"); }
-
-        // CANAL 2: AllOrigins
-        try {
-            const proxyUrl2 = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
-            logTecnico("Intentando Canal 2...");
-            const response = await fetchWithTimeout(proxyUrl2, {}, 6000);
-            if (response.ok) {
-                const textData = await response.text();
-                if (textData.trim().startsWith("<") || textData.toLowerCase().includes("cloudflare")) {
-                    throw new Error("Bloqueo de seguridad.");
-                }
-                return JSON.parse(textData);
-            } else { throw new Error(`HTTP ${response.status}`); }
-        } catch (err) { logTecnico(`Canal 2 fallido: ${err.message}`, "error"); }
-
-        // CANAL 3: Codetabs
-        try {
-            const proxyUrl3 = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`;
-            logTecnico("Intentando Canal 3...");
-            const response = await fetchWithTimeout(proxyUrl3, {}, 6000);
-            if (response.ok) {
-                const textData = await response.text();
-                if (textData.trim().startsWith("<") || textData.toLowerCase().includes("cloudflare")) {
-                    throw new Error("Bloqueo de seguridad.");
-                }
-                return JSON.parse(textData);
-            } else { throw new Error(`HTTP ${response.status}`); }
-        } catch (err) { logTecnico(`Canal 3 fallido: ${err.message}`, "error"); }
-
-        throw new Error("Todos los canales de red proxy alternativos fallaron.");
+        montoTotalAlacena.innerText = `$${totalAcumulado.toLocaleString('es-AR', {minimumFractionDigits: 2})}`;
     }
 
     function procesarRespuestaVtex(data) {
         if (!data) return null;
         try {
-            let products = Array.isArray(data) ? data : (data.products || []);
+            let products = data.products || (Array.isArray(data) ? data : []);
             if (products.length === 0) return null;
 
             const prod = products[0];
@@ -339,15 +344,11 @@
             const completeName = brand ? `${brand} - ${prodName}` : prodName;
 
             let spotPrice = null;
-            if (prod.priceRange && prod.priceRange.sellingPrice) {
-                spotPrice = prod.priceRange.sellingPrice.lowPrice;
-            }
+            if (prod.priceRange?.sellingPrice) spotPrice = prod.priceRange.sellingPrice.lowPrice;
 
-            if ((spotPrice === null || spotPrice === undefined || spotPrice === 0) && prod.items && prod.items[0]?.sellers?.[0]) {
+            if ((spotPrice === null || spotPrice === undefined || spotPrice === 0) && prod.items?.[0]?.sellers?.[0]) {
                 const offer = prod.items[0].sellers[0].commertialOffer;
-                if (offer) {
-                    spotPrice = offer.spotPrice || offer.Price || null;
-                }
+                if (offer) spotPrice = offer.spotPrice || offer.Price || null;
             }
 
             if (spotPrice !== null && spotPrice !== undefined && spotPrice > 0) {
@@ -357,67 +358,76 @@
         } catch (err) { return null; }
     }
 
-    // Consulta e Inyección de Resultados Dinámicos
     btnBuscar.addEventListener('click', async () => {
         const ean = document.getElementById('idProducto').value.trim();
         if (!ean) return alert("Ingresa un código de barras.");
 
         listaSucursales.innerHTML = "";
         errorBox.style.display = 'none';
-        btnBuscar.innerText = "Consultando APIs...";
+        btnBuscar.innerText = "Buscando en múltiples servidores...";
         btnBuscar.disabled = true;
+        debugPanel.innerHTML = "";
 
         opcionesActuales = [];
         productoActualNombre = "Producto";
 
         const radioBusqueda = 30000; 
         const urlPreciosClaros = `https://d3e6htiiul5ek9.cloudfront.net/prod/productos?id_producto=${ean}&lat=${miLatitud}&lng=${miLongitud}&radio=${radioBusqueda}&limit=30`;
-        
+        const urlCarrefour = `https://www.carrefour.com.ar/api/io/_v/api/intelligent-search/product_search?query=${ean}&postalCode=2800&_nocache=${Date.now()}`;
+
         try {
             const [resPrecios, resCarrefourRaw] = await Promise.allSettled([
-                fetch(urlPreciosClaros).then(r => r.json()),
-                fetchProductFromCarrefour(ean)
+                fetchViaProxies(urlPreciosClaros, "Precios Claros"),
+                fetchViaProxies(urlCarrefour, "Carrefour")
             ]);
 
-            // Parseo Precios Claros
-            if (resPrecios.status === "fulfilled" && resPrecios.value?.sucursales) {
+            // Parsear Precios Claros (Con direcciones y distancias reales de sucursal)
+            if (resPrecios.status === "fulfilled" && resPrecios.value) {
                 const data = resPrecios.value;
                 if (data.producto?.nombre) productoActualNombre = data.producto.nombre;
                 
-                data.sucursales.forEach(suc => {
-                    if (!suc.message && suc.preciosProducto) {
-                        const precio = suc.preciosProducto.precioLista || suc.preciosProducto.precio_unitario_con_iva;
-                        const dist = calcularDistancia(miLatitud, miLongitud, parseFloat(suc.lat), parseFloat(suc.lng));
-                        
-                        if (precio && parseFloat(precio) > 0) {
-                            opcionesActuales.push({
-                                cadena: "PreciosClaros",
-                                nombre: `${suc.banderaDescripcion} (${suc.sucursalNombre})`,
-                                direccion: suc.direccion || "Dirección no disponible",
-                                distancia: dist,
-                                precio: parseFloat(precio)
-                            });
+                if (data.sucursales && data.sucursales.length > 0) {
+                    data.sucursales.forEach(suc => {
+                        if (!suc.message && suc.preciosProducto) {
+                            const precio = suc.preciosProducto.precioLista || suc.preciosProducto.precio_unitario_con_iva;
+                            
+                            // Extraer coordenadas nativas de la sucursal para calcular la distancia en tiempo real
+                            const latSuc = parseFloat(suc.lat);
+                            const lngSuc = parseFloat(suc.lng);
+                            const dist = calcularDistancia(miLatitud, miLongitud, latSuc, lngSuc);
+                            
+                            if (precio && parseFloat(precio) > 0) {
+                                opcionesActuales.push({
+                                    cadena: "PreciosClaros",
+                                    nombre: `${suc.banderaDescripcion} (${suc.sucursalNombre})`,
+                                    direccion: suc.direccion || "Dirección no especificada",
+                                    distancia: dist,
+                                    precio: parseFloat(precio)
+                                });
+                            }
                         }
-                    }
-                });
+                    });
+                    logTecnico("Precios Claros parseado correctamente.", "success");
+                }
             }
 
-            // Parseo Carrefour
+            // Parsear Carrefour
             if (resCarrefourRaw.status === "fulfilled" && resCarrefourRaw.value) {
                 const itemProcesado = procesarRespuestaVtex(resCarrefourRaw.value);
                 if (itemProcesado) {
                     if (productoActualNombre === "Producto") productoActualNombre = itemProcesado.name;
                     opcionesActuales.push({
                         cadena: "Carrefour",
-                        nombre: `Carrefour Digital`,
-                        direccion: "Precio de referencia tienda online",
+                        nombre: `Carrefour E-Commerce`,
+                        direccion: "Tienda Digital / Envío a domicilio",
                         distancia: null, 
                         precio: itemProcesado.price
                     });
+                    logTecnico("Carrefour Digital parseado correctamente.", "success");
                 }
             }
 
-            // Ordenamiento por menor precio
+            // Filtrar y ordenar
             opcionesActuales.sort((a, b) => a.precio - b.precio);
             const top3 = opcionesActuales.slice(0, 3);
 
@@ -426,15 +436,15 @@
                 
                 top3.forEach((suc, index) => {
                     const esCarrefour = suc.cadena === "Carrefour" ? "carrefour" : "";
-                    const distTexto = suc.distancia ? `${suc.distancia.toFixed(2)} KM` : "N/A";
+                    const distTexto = suc.distancia ? `${suc.distancia.toFixed(2)} KM` : "Envío Digital / N/A";
                     
                     const htmlCard = `
                         <div class="sucursal-item ${esCarrefour}">
                             <div class="sucursal-info">
                                 <p><span class="badge-pos">#${index + 1}</span> <strong>${suc.nombre}</strong></p>
-                                <p><small>📍 ${suc.direccion}</small></p>
-                                <p><small>🚗 Distancia: ${distTexto}</small></p>
-                                <button class="btn-anadir" onclick="seleccionarYAgregar(${index})">➕ Añadir a Alacena</button>
+                                <p><small>📍 Dirección: ${suc.direccion}</small></p>
+                                <p><small>🚗 Distancia a tu posición: ${distTexto}</small></p>
+                                <button class="btn-anadir" onclick="seleccionarYAgregar(${index})">➕ Elegir esta opción</button>
                             </div>
                             <div class="precio-tag">$${suc.precio.toLocaleString('es-AR', {minimumFractionDigits: 2})}</div>
                         </div>
@@ -443,9 +453,8 @@
                 });
 
                 resultadoDiv.style.display = 'block';
-
             } else {
-                throw new Error("No se encontraron sucursales con stock o precios válidos asignados.");
+                throw new Error("No se encontraron sucursales físicas ni digitales con ofertas de precios legibles.");
             }
 
         } catch (err) {
