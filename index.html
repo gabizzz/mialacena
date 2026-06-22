@@ -3,768 +3,479 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Comparador de Precios Top 5 y Alacena Inteligente</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <title>Comparador de Precios: Coto vs Carrefour</title>
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f4f7f6;
-            color: #333;
-            max-width: 700px;
-            margin: 30px auto;
-            padding: 20px;
+        :root {
+            --coto-color: #e53e3e;
+            --carrefour-color: #2b6cb0;
+            --bg-winner: #f0fff4;
+            --border-winner: #38a169;
         }
-        .card {
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: #f7fafc;
+            margin: 0;
+            padding: 20px;
+            color: #2d3748;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
             background: white;
-            padding: 25px;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+        h1, h2 {
+            text-align: center;
+            margin-top: 0;
+        }
+        .search-box {
+            display: flex;
+            gap: 10px;
             margin-bottom: 20px;
         }
-        h1 { margin-top: 0; color: #2c3e50; font-size: 24px; }
-        h2 { margin-top: 0; color: #2c3e50; font-size: 20px; }
-        label { font-weight: bold; display: block; margin-bottom: 8px; }
-        
-        .input-group {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 15px;
-        }
-        input[type="text"], input[type="number"], select {
-            padding: 10px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            box-sizing: border-box;
-            font-size: 16px;
-        }
-        input[type="text"] { flex: 1; }
-        
-        button {
-            background-color: #2980b9;
-            color: white;
-            border: none;
-            padding: 12px 20px;
-            font-size: 16px;
-            border-radius: 4px;
-            cursor: pointer;
-            width: 100%;
-            transition: background 0.2s;
-        }
-        button:hover { background-color: #2471a3; }
-        button:disabled { background-color: #95a5a6; cursor: not-allowed; }
-        
-        .btn-scanner { background-color: #e67e22; width: auto; padding: 10px 15px; }
-        .btn-scanner:hover { background-color: #d35400; }
-        
-        .flex-buttons { 
-            display: flex; 
-            gap: 12px; 
-            margin-bottom: 15px;
-        }
-        .btn-alacena-accion {
+        input[type="number"] {
             flex: 1;
-            padding: 12px 15px;
-            font-size: 15px;
-            font-weight: 600;
-            border-radius: 5px;
-            border: none;
-            cursor: pointer;
-            color: white;
-            transition: background 0.2s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
+            padding: 12px;
+            border: 2px border #e2e8f0;
+            border-radius: 8px;
+            font-size: 16px;
+            outline: none;
         }
-        .btn-alacena-actualizar { background-color: #7f8c8d; }
-        .btn-alacena-actualizar:hover { background-color: #6c7a7b; }
-        .btn-alacena-compartir { background-color: #27ae60; }
-        .btn-alacena-compartir:hover { background-color: #219653; }
-        
-        .btn-chico { padding: 8px 12px; font-size: 14px; width: auto; }
+        input[type="number"]:focus {
+            border-color: #cbcff0;
+        }
+        button {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 14px;
+            transition: transform 0.1s, opacity 0.2s;
+        }
+        button:active {
+            transform: scale(0.97);
+        }
+        .btn-search { background-color: #4a5568; color: white; }
+        .btn-cam { background-color: #3182ce; color: white; }
+        .btn-add { background-color: #38a169; color: white; width: 100%; margin-top: 15px; padding: 14px; font-size: 15px;}
+        .btn-clear { background-color: #e53e3e; color: white; padding: 6px 12px; font-size: 12px; }
+        .btn-del { background: none; border: none; cursor: pointer; font-size: 16px; }
 
-        #reader {
-            width: 100%;
-            background: #000;
-            margin-bottom: 15px;
+        #reader-container {
+            display: none;
+            margin-bottom: 20px;
+            border: 2px dashed #cbd5e0;
             border-radius: 8px;
             overflow: hidden;
+            background: #000;
+        }
+
+        #loader {
             display: none;
+            text-align: center;
+            font-weight: bold;
+            color: #4a5568;
+            margin: 20px 0;
         }
-        
-        .status { margin-top: 10px; font-style: italic; color: #7f8c8d; }
-        #resultado { margin-top: 20px; display: none; }
-        
-        .sucursal-item {
-            background: #fff;
-            border: 1px solid #ddd;
-            border-left: 5px solid #27ae60;
+
+        .product-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            background: #edf2f7;
             padding: 15px;
-            margin-top: 12px;
-            border-radius: 4px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            border-radius: 8px;
+            margin-bottom: 20px;
         }
-        .sucursal-item.carrefour { border-left-color: #00469b; }
-        .sucursal-item.carrefour .badge-pos { background: #00469b; }
-        .sucursal-item.masonline { border-left-color: #f1c40f; }
-        .sucursal-item.masonline .badge-pos { background: #f1c40f; color: #333; }
-        .sucursal-item.vea { border-left-color: #e74c3c; }
-        .sucursal-item.vea .badge-pos { background: #e74c3c; }
-        .sucursal-item.dia { border-left-color: #c0392b; }
-        .sucursal-item.dia .badge-pos { background: #c0392b; }
-        .sucursal-item.coto { border-left-color: #e67e22; }
-        .sucursal-item.coto .badge-pos { background: #e67e22; }
-
-        .sucursal-info p { margin: 4px 0; }
-        .badge-pos {
-            background: #27ae60;
-            color: white;
-            padding: 3px 8px;
-            border-radius: 50%;
-            font-weight: bold;
-            font-size: 14px;
-        }
-        .precio-tag { font-size: 20px; font-weight: bold; color: #2c3e50; text-align: right; }
-        .error { color: #c0392b; background: #f9ebea; padding: 10px; border-radius: 4px; margin-top: 15px; }
-
-        .selector-cantidad {
-            padding: 6px;
-            font-size: 14px;
-            border-radius: 4px;
-            border: 1px solid #ccc;
-            margin-right: 5px;
-            width: 65px;
-            box-sizing: border-box;
-        }
-
-        .btn-anadir {
-            background-color: #2ecc71;
-            color: white;
-            border: none;
-            padding: 6px 12px;
-            font-size: 13px;
-            border-radius: 4px;
-            cursor: pointer;
-            width: auto;
-            margin-top: 5px;
-            display: inline-block;
-        }
-        .btn-anadir:hover { background-color: #27ae60; }
-
-        .alacena-lista { list-style: none; padding: 0; }
-        .alacena-item {
-            background: #fdfefe;
-            border: 1px solid #e2e8f0;
-            padding: 12px 15px;
-            margin-bottom: 8px;
-            border-radius: 4px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .btn-eliminar {
-            background-color: #e74c3c;
-            color: white;
-            border: none;
-            padding: 5px 10px;
-            font-size: 12px;
-            border-radius: 4px;
-            cursor: pointer;
-            width: auto;
-            margin-left: 15px;
-        }
-        .btn-eliminar:hover { background-color: #c0392b; }
-
-        .alacena-total {
-            margin-top: 15px;
-            padding-top: 15px;
-            border-top: 2px dashed #bdc3c7;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 18px;
-            font-weight: bold;
-            color: #2c3e50;
-        }
-
-        .debug-panel {
-            background: #2c3e50;
-            color: #ecf0f1;
-            font-family: monospace;
-            padding: 12px;
-            border-radius: 4px;
-            font-size: 12px;
-            max-height: 120px;
-            overflow-y: auto;
-            margin-top: 15px;
-        }
-        .log-line { margin: 3px 0; }
-        .log-success { color: #2ecc71; }
-        .log-error { color: #e74c3c; }
-
-        #toast {
-            position: fixed;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%) translateY(-100px);
-            background-color: #2c3e50;
-            color: #fff;
-            padding: 12px 24px;
-            border-radius: 30px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.25);
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            z-index: 9999;
-            opacity: 0;
-            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s;
-            pointer-events: none;
-            font-weight: 500;
-        }
-        #toast-icon { color: #f1c40f; }
-
-        .comparativa-box {
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
+        .product-header img {
+            width: 80px;
+            height: 80px;
+            object-fit: contain;
+            background: white;
             border-radius: 6px;
+            border: 1px solid #e2e8f0;
+        }
+        .product-info h3 { margin: 0 0 5px 0; font-size: 16px; }
+        .product-info p { margin: 0; color: #718096; font-size: 14px; }
+
+        .cards-grid {
+            display: grid;
+            grid-cols: 1fr 1fr;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        .card {
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
             padding: 15px;
-            margin-top: 15px;
+            text-align: center;
+            position: relative;
+            background: #fff;
         }
-        .item-comp {
-            display: flex;
-            justify-content: space-between;
-            font-size: 14px;
-            padding: 5px 0;
-            border-bottom: 1px dashed #e2e8f0;
+        .card.coto-border { border-top: 6px solid var(--coto-color); }
+        .card.carrefour-border { border-top: 6px solid var(--carrefour-color); }
+        
+        .card.winner {
+            background-color: var(--bg-winner);
+            border-color: var(--border-winner);
         }
-        .loader-mini {
+        .card.winner::after {
+            content: "🏆 El más barato";
+            position: absolute;
+            top: -12px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--border-winner);
+            color: white;
             font-size: 11px;
-            color: #3498db;
-            font-style: italic;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-weight: bold;
         }
-        .tienda-origen-tag {
-            background-color: #ebf5fb;
-            color: #2980b9;
-            padding: 2px 6px;
-            border-radius: 3px;
+
+        .market-title { font-size: 18px; font-weight: bold; margin-bottom: 10px; }
+        .coto-color { color: var(--coto-color); }
+        .carrefour-color { color: var(--carrefour-color); }
+        
+        .price-main { font-size: 24px; font-weight: 900; margin: 10px 0; }
+        .price-old { font-size: 13px; color: #a0aec0; text-decoration: line-through; height: 18px; }
+        
+        .badge-container { height: 25px; margin-bottom: 5px; }
+        .discount-badge {
+            background-color: #feebc8;
+            color: #c05621;
             font-size: 11px;
-            font-weight: 600;
+            font-weight: bold;
+            padding: 3px 8px;
+            border-radius: 4px;
             display: inline-block;
-            margin-top: 4px;
-            border: 1px solid #d4e6f1;
         }
-        .direccion-establecimiento {
-            font-size: 12px;
-            color: #555;
-            display: block;
-            margin-top: 3px;
-            font-style: italic;
-        }
+        .error-local { color: #a0aec0; font-size: 14px; font-style: italic; }
+
+        /* Estilos Tabla de Lista de Compras */
+        .list-section { margin-top: 35px; border-top: 2px solid #e2e8f0; pt: 20px; padding-top: 20px;}
+        .list-header-box { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+        th { background-color: #f7fafc; color: #4a5568; }
+        .total-box { text-align: right; font-size: 18px; font-weight: bold; margin-top: 15px; color: #2d3748; }
     </style>
 </head>
 <body>
 
-<div id="toast">
-    <i id="toast-icon" class="fa-solid fa-circle-info"></i>
-    <span id="toast-msg"></span>
-</div>
-
-<div class="card">
-    <h1>Comparador: Top 5 Sucursales Más Baratas</h1>
+<div class="container">
+    <h1>SpotPrice Comparador</h1>
     
-    <div id="geoContainer">
-        <div id="geoStatus" class="status">Obteniendo tu ubicación actual...</div>
+    <div class="search-box">
+        <input type="number" id="eanInput" placeholder="Escaneá o escribí el código EAN" inputmode="numeric">
+        <button class="btn-cam" id="btn-camara" onclick="toggleCamara()">📷 Cámara</button>
+        <button class="btn-search" onclick="buscarPrecios()">Buscar</button>
     </div>
-    
-    <div style="margin-top: 15px;">
-        <label for="idProducto">Código de barras (EAN):</label>
-        <div class="input-group">
-            <input type="text" id="idProducto" value="7790070035936" placeholder="Ej: 7790070035936">
-            <button type="button" id="btnEscanear" class="btn-scanner">📷 Escanear</button>
+
+    <div id="reader-container">
+        <div id="reader" style="width: 100%;"></div>
+    </div>
+
+    <div id="loader">🔄 Buscando en las góndolas digitales...</div>
+
+    <div id="comparison-zone" style="display: none;">
+        <div class="product-header">
+            <img id="prod-img" src="" alt="Producto">
+            <div class="product-info">
+                <h3 id="prod-title">Nombre del Producto</h3>
+                <p id="prod-brand">Marca</p>
+            </div>
         </div>
-        
-        <div id="reader"></div>
 
-        <button id="btnBuscar" disabled>Buscar y Calcular Precios</button>
+        <div class="cards-grid">
+            <div class="card coto-border" id="card-coto">
+                <div class="market-title coto-color">Coto Digital</div>
+                <div class="badge-container" id="coto-badge-container"></div>
+                <div class="price-old" id="coto-old"></div>
+                <div class="price-main" id="coto-price">$0.00</div>
+            </div>
+
+            <div class="card carrefour-border" id="card-carrefour">
+                <div class="market-title carrefour-color">Carrefour</div>
+                <div class="badge-container" id="carrefour-badge-container"></div>
+                <div class="price-old" id="carrefour-old"></div>
+                <div class="price-main" id="carrefour-price">$0.00</div>
+            </div>
+        </div>
+
+        <button class="btn-add" onclick="agregarALista()">➕ Agregar el más barato a mi lista</button>
     </div>
 
-    <div id="technical-debug-logs" class="debug-panel">Logs de red listos...</div>
-
-    <div id="errorBox" class="error" style="display: none;"></div>
-
-    <div id="resultado">
-        <h3>Producto: <span id="prodNombre" style="color:#2980b9;">-</span></h3>
-        <p><small>Resultados filtrados en un radio de 30 KM ordenados por menor precio (Top 5)</small></p>
-        <div id="listaSucursales"></div>
-    </div>
-</div>
-
-<div class="card" id="seccion-alacena">
-    <h2>Mi Alacena 🛒</h2>
-    
-    <div class="flex-buttons">
-        <button id="btnActualizarLista" class="btn-alacena-accion btn-alacena-actualizar">🔄 Actualizar Precios</button>
-        <button id="btnCompartirLista" class="btn-alacena-accion btn-alacena-compartir">📤 Compartir Lista</button>
-    </div>
-    
-    <ul id="listaAlacena" class="alacena-lista"></ul>
-    <div class="alacena-total">
-        <span>Monto Total:</span>
-        <span id="montoTotalAlacena">$0,00</span>
-    </div>
-
-    <div class="comparativa-box">
-        <label for="selectComerciosMapeados" style="font-size: 15px;">📊 Comparar Alacena Completa por Comercio:</label>
-        <select id="selectComerciosMapeados" style="width: 100%; margin-bottom: 10px;">
-            <option value="">-- Selecciona una cadena para cotizar todo --</option>
-            <option value="Carrefour Digital">Carrefour Digital</option>
-            <option value="Coto Digital">Coto Digital</option>
-            <option value="MasOnline Digital">MasOnline Digital</option>
-            <option value="Vea Digital">Vea Digital</option>
-            <option value="Dia Online">Dia Online</option>
-        </select>
-        <div id="detallesComparativaCarrito">
-            <p style="color: #7f8c8d; font-size: 13px; text-align: center;">Selecciona una cadena para calcular costos de un solo viaje.</p>
+    <div class="list-section">
+        <div class="list-header-box">
+            <h2>🛒 Mi Lista de Ahorro</h2>
+            <button class="btn-clear" onclick="vaciarLista()">Vaciar Lista</button>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Producto</th>
+                    <th>Sucursal</th>
+                    <th>Precio</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody id="list-body">
+                </tbody>
+        </table>
+        <div class="total-box">
+            Total Estimado: <span id="list-total">$0.00</span>
         </div>
     </div>
 </div>
 
 <script>
-    let miLatitud = null;
-    let miLongitud = null;
-    let opcionesActuales = [];
-    let productoActualNombre = "";
     let html5QrcodeScanner = null;
+    let prodaGuardar = null; 
+    let listaCompras = JSON.parse(localStorage.getItem('lista_compras')) || [];
 
-    let mapeoPreciosPorComercio = JSON.parse(localStorage.getItem('mapeoPreciosPorComercio')) || {};
-    let alacena = JSON.parse(localStorage.getItem('miAlacena')) || [];
+    // Renderizar la lista al iniciar la página por si hay elementos guardados
+    renderLista();
 
-    const geoContainer = document.getElementById('geoContainer');
-    const geoStatus = document.getElementById('geoStatus');
-    const btnBuscar = document.getElementById('btnBuscar');
-    const btnEscanear = document.getElementById('btnEscanear');
-    const btnCompartirLista = document.getElementById('btnCompartirLista');
-    const btnActualizarLista = document.getElementById('btnActualizarLista');
-    const errorBox = document.getElementById('errorBox');
-    const resultadoDiv = document.getElementById('resultado');
-    const listaSucursales = document.getElementById('listaSucursales');
-    const listaAlacena = document.getElementById('listaAlacena');
-    const montoTotalAlacena = document.getElementById('montoTotalAlacena');
-    const debugPanel = document.getElementById('technical-debug-logs');
-    const readerDiv = document.getElementById('reader');
-    const selectComerciosMapeados = document.getElementById('selectComerciosMapeados');
-    const detallesComparativaCarrito = document.getElementById('detallesComparativaCarrito');
+    // --- MANEJO DE CÁMARA (html5-qrcode) ---
+    function toggleCamara() {
+        const container = document.getElementById('reader-container');
+        const btn = document.getElementById('btn-camara');
+        if (html5QrcodeScanner) { detenerCamara(); return; }
 
-    const bdCodigosPostales = {
-        "1000": { lat: -34.6037, lon: -58.3816, loc: "CABA" },
-        "1425": { lat: -34.5819, lon: -58.4201, loc: "Palermo, CABA" },
-        "2000": { lat: -32.9442, lon: -60.6505, loc: "Rosario, Santa Fe" },
-        "5000": { lat: -31.4135, lon: -64.1811, loc: "Córdoba Capital" },
-        "2800": { lat: -34.0981, lon: -59.0286, loc: "Zárate, Buenos Aires" }
-    };
+        container.style.display = 'block';
+        btn.innerText = "❌ Cerrar";
+        btn.style.backgroundColor = "#718096";
 
-    actualizarVistaAlacena();
-
-    function mostrarToast(mensaje, icono = "fa-circle-info") {
-        const toast = document.getElementById('toast');
-        const toastMsg = document.getElementById('toast-msg');
-        const toastIcon = document.getElementById('toast-icon');
-        toastIcon.className = `fa-solid ${icono}`;
-        toastMsg.innerText = mensaje;
-        toast.style.transform = 'translateX(-50%) translateY(0)';
-        toast.style.opacity = '1';
-        setTimeout(() => {
-            toast.style.transform = 'translateX(-50%) translateY(-100px)';
-            toast.style.opacity = '0';
-        }, 3000);
-    }
-
-    function logTecnico(mensaje, tipo = "info") {
-        const p = document.createElement('p');
-        p.className = `log-line log-${tipo}`;
-        p.innerText = `[${new Date().toLocaleTimeString()}] ${mensaje}`;
-        debugPanel.appendChild(p);
-        debugPanel.scrollTop = debugPanel.scrollHeight;
-    }
-
-    function activarEntradaManualCP(mensajeError) {
-        geoContainer.innerHTML = `
-            <div style="background: #fff3cd; border: 1px solid #ffeeba; padding: 12px; border-radius: 4px; margin-top:10px;">
-                <p style="margin: 0 0 8px 0; font-size:14px; color: #856404;">⚠️ ${mensajeError}</p>
-                <label style="font-size:13px; margin-bottom:4px;">Ingresá tu Código Postal Argentino:</label>
-                <div class="input-group" style="margin-bottom:0;">
-                    <input type="text" id="inputCPManual" placeholder="Ej: 2800" style="padding:6px; font-size:14px;">
-                    <button type="button" class="btn-chico" onclick="procesarCPManual()">Fijar CP</button>
-                </div>
-            </div>
-        `;
-    }
-
-    function procesarCPManual() {
-        const cp = document.getElementById('inputCPManual').value.trim();
-        if(!cp) return mostrarToast("Por favor ingresá un CP", "fa-circle-exclamation");
-        if(bdCodigosPostales[cp]) {
-            miLatitud = bdCodigosPostales[cp].lat;
-            miLongitud = bdCodigosPostales[cp].lon;
-            mostrarToast(`Ubicación establecida en ${bdCodigosPostales[cp].loc}`, "fa-location-dot");
-            geoContainer.innerHTML = `<div class="status" style="color:#27ae60;">📍 Ubicación por CP ${cp}: ${bdCodigosPostales[cp].loc}</div>`;
-            btnBuscar.disabled = false;
-        } else {
-            miLatitud = -34.6037; miLongitud = -58.3816;
-            mostrarToast("Asignado nodo CABA por defecto", "fa-circle-info");
-            geoContainer.innerHTML = `<div class="status" style="color:#27ae60;">📍 Ubicación aproximada CP ${cp}</div>`;
-            btnBuscar.disabled = false;
-        }
-    }
-
-    if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-            (position) => {
-                miLatitud = position.coords.latitude; miLongitud = position.coords.longitude;
-                geoStatus.innerHTML = `📍 Ubicación obtenida por GPS`;
-                geoStatus.style.color = '#27ae60';
-                btnBuscar.disabled = false;
-            },
-            () => { activarEntradaManualCP("Geolocalización inaccesible."); }
-        );
-    } else {
-        activarEntradaManualCP("Sin soporte GPS.");
-    }
-
-    async function fetchWithTimeout(resource, options = {}, timeout = 6000) {
-        const controller = new AbortController();
-        const id = setTimeout(() => controller.abort(), timeout);
-        const response = await fetch(resource, { ...options, signal: controller.signal });
-        clearTimeout(id);
-        return response;
-    }
-
-    function calcularDistancia(lat1, lon1, lat2, lon2) {
-        if (!lat1 || !lon1 || !lat2 || !lon2) return null;
-        const R = 6371; 
-        const dLat = (lat2 - lat1) * Math.PI / 180;
-        const dLon = (lon2 - lon1) * Math.PI / 180;
-        const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
-        return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))); 
-    }
-
-    async function fetchViaProxies(targetUrl, nombreApi) {
-        try {
-            const response = await fetchWithTimeout(`https://corsproxy.io/?${encodeURIComponent(targetUrl)}`);
-            if (response.ok) { const text = await response.text(); if (!text.trim().startsWith("<")) return JSON.parse(text); }
-        } catch (e) {}
-        try {
-            const response = await fetchWithTimeout(`https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`);
-            if (response.ok) { const text = await response.text(); if (!text.trim().startsWith("<")) return JSON.parse(text); }
-        } catch (e) {}
-        throw new Error(`Error con ${nombreApi}.`);
-    }
-
-    btnEscanear.addEventListener('click', () => { if (readerDiv.style.display === "block") detenerEscaneo(); else empezarEscaneo(); });
-    function empezarEscaneo() {
-        readerDiv.style.display = "block"; btnEscanear.innerText = "🛑 Detener";
         html5QrcodeScanner = new Html5Qrcode("reader");
-        html5QrcodeScanner.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 250, height: 150 } }, (decodedText) => {
-            document.getElementById('idProducto').value = decodedText; detenerEscaneo(); btnBuscar.click();
-        }, () => {});
-    }
-    function detenerEscaneo() { if (html5QrcodeScanner) { html5QrcodeScanner.stop().then(() => { html5QrcodeScanner = null; readerDiv.style.display = "none"; btnEscanear.innerText = "📷 Escanear"; }); } }
+        const config = { fps: 10, qrbox: { width: 260, height: 160 } };
 
-    function seleccionarYAgregar(index, eanProducto) {
-        const opcionSeleccionada = opcionesActuales[index];
-        if (!opcionSeleccionada) return;
-        const inputCant = document.getElementById(`cant-${index}`);
-        const cantidad = parseInt(inputCant.value) || 1;
-
-        const identificadorEstablecimiento = opcionSeleccionada.direccion && opcionSeleccionada.direccion !== "Tienda Digital" 
-            ? `${opcionSeleccionada.nombre} (${opcionSeleccionada.direccion})` 
-            : opcionSeleccionada.nombre;
-
-        if(!mapeoPreciosPorComercio[identificadorEstablecimiento]) mapeoPreciosPorComercio[identificadorEstablecimiento] = {};
-        mapeoPreciosPorComercio[identificadorEstablecimiento][eanProducto] = { precio: opcionSeleccionada.precio };
-        localStorage.setItem('mapeoPreciosPorComercio', JSON.stringify(mapeoPreciosPorComercio));
-
-        const indexExistente = alacena.findIndex(item => item.ean === eanProducto);
-        if (indexExistente > -1) {
-            alacena[indexExistente].cantidad += cantidad;
-            alacena[indexExistente].precio = opcionSeleccionada.precio;
-            alacena[indexExistente].sucursal = identificadorEstablecimiento;
-        } else {
-            alacena.push({ 
-                id: Date.now(), 
-                ean: eanProducto, 
-                producto: productoActualNombre, 
-                sucursal: identificadorEstablecimiento, 
-                precio: opcionSeleccionada.precio, 
-                cantidad: cantidad 
-            });
-        }
-        localStorage.setItem('miAlacena', JSON.stringify(alacena));
-        actualizarVistaAlacena();
-        renderizarCalculoComparativo();
-        mostrarToast("Producto guardado en alacena", "fa-basket-shopping");
-    }
-
-    function cambiarCantidadLista(id, nuevaCantidad) {
-        const cantidad = parseInt(nuevaCantidad); if (isNaN(cantidad) || cantidad < 1) return;
-        const index = alacena.findIndex(item => item.id === id);
-        if (index > -1) { alacena[index].cantidad = cantidad; localStorage.setItem('miAlacena', JSON.stringify(alacena)); actualizarVistaAlacena(); renderizarCalculoComparativo(); }
-    }
-
-    function eliminarDeAlacena(id) {
-        alacena = alacena.filter(item => item.id !== id); localStorage.setItem('miAlacena', JSON.stringify(alacena));
-        actualizarVistaAlacena(); renderizarCalculoComparativo(); mostrarToast("Producto eliminado", "fa-trash");
-    }
-
-    function actualizarVistaAlacena() {
-        listaAlacena.innerHTML = ""; let totalAcumulado = 0;
-        alacena.forEach(item => {
-            const subtotal = item.precio * item.cantidad; totalAcumulado += subtotal;
-            const li = document.createElement('li'); li.className = "alacena-item";
-            li.innerHTML = `
-                <div>
-                    <strong>${item.producto}</strong><br>
-                    <span style="font-size:12px; font-weight:bold; color:#e67e22;">🆔 EAN: ${item.ean}</span><br>
-                    <span class="tienda-origen-tag"><i class="fa-solid fa-shop"></i> Cotizado en: ${item.sucursal}</span>
-                </div>
-                <div style="display:flex; align-items:center; gap:8px;">
-                    <input type="number" class="selector-cantidad" value="${item.cantidad}" min="1" onchange="cambiarCantidadLista(${item.id}, this.value)">
-                    <div class="precio-tag" style="font-size:15px; min-width:90px;">$${subtotal.toLocaleString('es-AR', {minimumFractionDigits:2})}</div>
-                    <button class="btn-eliminar" onclick="eliminarDeAlacena(${item.id})">✖</button>
-                </div>`;
-            listaAlacena.appendChild(li);
+        html5QrcodeScanner.start({ facingMode: "environment" }, config, onScanSuccess, onScanFailure)
+        .catch(err => {
+            alert("No se pudo iniciar la cámara. Asegurate de estar usando localhost o una conexión segura HTTPS.");
+            detenerCamara();
         });
-        montoTotalAlacena.innerText = `$${totalAcumulado.toLocaleString('es-AR', {minimumFractionDigits:2})}`;
     }
 
-    async function renderizarCalculoComparativo() {
-        const cadenaSeleccionada = selectComerciosMapeados.value;
-        if(!cadenaSeleccionada) {
-            detallesComparativaCarrito.innerHTML = `<p style="color: #7f8c8d; font-size: 13px; text-align: center;">Selecciona una cadena para calcular costos de un solo viaje.</p>`;
+    function detenerCamara() {
+        const container = document.getElementById('reader-container');
+        const btn = document.getElementById('btn-camara');
+        if (html5QrcodeScanner) {
+            html5QrcodeScanner.stop().then(() => {
+                html5QrcodeScanner = null;
+                container.style.display = 'none';
+                btn.innerText = "📷 Cámara";
+                btn.style.backgroundColor = "#3182ce";
+            }).catch(err => console.error(err));
+        }
+    }
+
+    function onScanSuccess(decodedText) {
+        detenerCamara();
+        document.getElementById('eanInput').value = decodedText;
+        buscarPrecios();
+    }
+
+    function onScanFailure(error) {}
+
+    // --- CONSULTA SIMULTÁNEA DE APIS (Sin Proxy / Libre de CORS) ---
+    async function buscarPrecios() {
+        const ean = document.getElementById('eanInput').value.trim();
+        if (!ean) { alert("Por favor, ingresá un código de barras."); return; }
+
+        // Limpieza de UI previa
+        document.getElementById('comparison-zone').style.display = 'none';
+        document.getElementById('loader').style.display = 'block';
+        
+        document.getElementById('card-coto').classList.remove('winner');
+        document.getElementById('card-carrefour').classList.remove('winner');
+        document.getElementById('coto-badge-container').innerHTML = '';
+        document.getElementById('carrefour-badge-container').innerHTML = '';
+        document.getElementById('coto-old').innerText = '';
+        document.getElementById('carrefour-old').innerText = '';
+
+        // Endpoint Coto (Constructor.io - Público sin políticas restrictivas de origen)
+        const urlCoto = `https://ac.cnstrc.com/autocomplete/${ean}?c=cio-ui-autocomplete-1.29.3&key=key_r6xzz4IAoTWcipni&num_results_Products=1`;
+        
+        // Endpoint Carrefour Tradicional indexado (Evita el bloqueo estricto de la API inteligente)
+        const urlCarrefour = `https://www.carrefour.com.ar/api/catalog_system/pub/products/search?fq=alternateIds_Ean:${ean}`;
+
+        let datosCoto = null;
+        let datosCarrefour = null;
+
+        // Ejecución en paralelo
+        await Promise.all([
+            fetch(urlCoto).then(r => r.json()).then(j => datosCoto = j).catch(e => console.log("Error Coto:", e)),
+            fetch(urlCarrefour).then(r => r.json()).then(j => datosCarrefour = j).catch(e => console.log("Error Carrefour:", e))
+        ]);
+
+        document.getElementById('loader').style.display = 'none';
+
+        let finalTitle = "Producto Desconocido";
+        let finalBrand = "Genérico";
+        let finalImg = "https://via.placeholder.com/120";
+
+        let precioCotoFinal = null;
+        let precioCarrefourFinal = null;
+
+        // 1. Mapeo e Inyección de Coto
+        const prodCoto = datosCoto?.sections?.Products?.[0];
+        if (prodCoto) {
+            const data = prodCoto.data;
+            finalTitle = data.sku_display_name || prodCoto.value;
+            finalBrand = data.product_brand || "Genérico";
+            finalImg = data.image_url || finalImg;
+
+            let precioLista = data.product_list_price;
+            if (data.price && data.price.length > 0) precioLista = data.price[0].listPrice;
+
+            if (data.discounts && data.discounts.length > 0) {
+                const promo = data.discounts[0];
+                if (promo.discountText) {
+                    document.getElementById('coto-badge-container').innerHTML = `<span class="discount-badge">${promo.discountText}</span>`;
+                }
+                document.getElementById('coto-old').innerText = `Antes: $${precioLista}`;
+                precioCotoFinal = parseFloat(String(promo.discountPrice).replace(/[^0-9.-]+/g,""));
+            } else {
+                precioCotoFinal = parseFloat(precioLista);
+            }
+            document.getElementById('coto-price').innerText = `$${precioCotoFinal.toFixed(2)}`;
+        } else {
+            document.getElementById('coto-price').innerHTML = `<span class="error-local">No encontrado</span>`;
+        }
+
+        // 2. Mapeo e Inyección de Carrefour
+        const prodCarrefour = datosCarrefour?.[0];
+        if (prodCarrefour) {
+            // Si Coto no lo encontró, tomamos los datos base desde Carrefour
+            if (finalTitle === "Producto Desconocido") {
+                finalTitle = prodCarrefour.productName;
+                finalBrand = prodCarrefour.brand || "Genérico";
+                finalImg = prodCarrefour.items?.[0]?.images?.[0]?.imageUrl || finalImg;
+            }
+
+            const sItem = prodCarrefour.items?.[0]?.sellers?.[0]?.commertialRecord;
+            if (sItem) {
+                let precioLista = sItem.ListPrice;
+                let precioSpot = sItem.Price;
+
+                if (precioLista > precioSpot) {
+                    let dtoPorcentaje = Math.round(((precioLista - precioSpot) / precioLista) * 100);
+                    document.getElementById('carrefour-badge-container').innerHTML = `<span class="discount-badge">${dtoPorcentaje}% DTO</span>`;
+                    document.getElementById('carrefour-old').innerText = `Antes: $${precioLista}`;
+                }
+                precioCarrefourFinal = parseFloat(precioSpot);
+                document.getElementById('carrefour-price').innerText = `$${precioCarrefourFinal.toFixed(2)}`;
+            } else {
+                document.getElementById('carrefour-price').innerHTML = `<span class="error-local">Sin stock</span>`;
+            }
+        } else {
+            document.getElementById('carrefour-price').innerHTML = `<span class="error-local">No encontrado</span>`;
+        }
+
+        // Romper si no está en ninguno
+        if (!prodCoto && !prodCarrefour) {
+            alert("El producto no se encuentra disponible en las bases de datos de Coto ni Carrefour.");
             return;
         }
 
-        if(!mapeoPreciosPorComercio[cadenaSeleccionada]) mapeoPreciosPorComercio[cadenaSeleccionada] = {};
-        const basePrecios = mapeoPreciosPorComercio[cadenaSeleccionada];
+        // Mostrar datos generales en el Card superior
+        document.getElementById('prod-title').innerText = finalTitle;
+        document.getElementById('prod-brand').innerText = finalBrand;
+        document.getElementById('prod-img').src = finalImg;
 
-        let htmlContent = `<h4>Simulación para: ${cadenaSeleccionada}</h4>`;
-        let totalSimulado = 0;
-        let itemsCargados = 0;
+        // Comparativa para fijar ganador comercial
+        let mejorLugar = "";
+        let mejorPrecio = 0;
 
-        for (const item of alacena) {
-            if(basePrecios[item.ean]) {
-                const sub = basePrecios[item.ean].precio * item.cantidad;
-                totalSimulado += sub;
-                itemsCargados++;
-                htmlContent += `
-                    <div class="item-comp">
-                        <span>• ${item.cantidad}x ${item.producto} <br><small style="color:#7f8c8d;">EAN: ${item.ean}</small></span>
-                        <strong>$${sub.toLocaleString('es-AR', {minimumFractionDigits: 2})}</strong>
-                    </div>`;
+        if (precioCotoFinal && precioCarrefourFinal) {
+            if (precioCotoFinal <= precioCarrefourFinal) {
+                document.getElementById('card-coto').classList.add('winner');
+                mejorLugar = "Coto";
+                mejorPrecio = precioCotoFinal;
             } else {
-                htmlContent += `
-                    <div class="item-comp" id="comp-loader-${item.ean}" style="background:#e8f4f8;">
-                        <span>• ${item.cantidad}x ${item.producto} <br><small style="color:#7f8c8d;">EAN: ${item.ean}</small></span>
-                        <span class="loader-mini"><i class="fa-solid fa-spinner fa-spin"></i> Buscando precio...</span>
-                    </div>`;
+                document.getElementById('card-carrefour').classList.add('winner');
+                mejorLugar = "Carrefour";
+                mejorPrecio = precioCarrefourFinal;
             }
+        } else if (precioCotoFinal) {
+            document.getElementById('card-coto').classList.add('winner');
+            mejorLugar = "Coto";
+            mejorPrecio = precioCotoFinal;
+        } else if (precioCarrefourFinal) {
+            document.getElementById('card-carrefour').classList.add('winner');
+            mejorLugar = "Carrefour";
+            mejorPrecio = precioCarrefourFinal;
         }
 
-        htmlContent += `
-            <div style="margin-top:12px; padding-top:8px; border-top:2px solid #2c3e50; display:flex; justify-content:space-between; font-weight:bold;">
-                <span>Total estimado (${itemsCargados}/${alacena.length} ítems):</span>
-                <span id="total-simulado-caja" style="color:#2c3e50; font-size:17px;">$${totalSimulado.toLocaleString('es-AR', {minimumFractionDigits: 2})}</span>
-            </div>`;
-        detallesComparativaCarrito.innerHTML = htmlContent;
+        // Guardado temporal estructurado para la lista
+        prodaGuardar = {
+            titulo: finalTitle,
+            lugar: mejorLugar,
+            precio: mejorPrecio
+        };
 
-        for (const item of alacena) {
-            if(!basePrecios[item.ean]) {
-                try {
-                    const res = await realizarBusquedaDePrecios(item.ean);
-                    const matchCadena = res.opciones.find(o => o.nombre.toLowerCase().includes(cadenaSeleccionada.toLowerCase().split(' ')[0]));
-                    
-                    if(matchCadena) {
-                        basePrecios[item.ean] = { precio: matchCadena.precio };
-                        localStorage.setItem('mapeoPreciosPorComercio', JSON.stringify(mapeoPreciosPorComercio));
-                    } else {
-                        basePrecios[item.ean] = { precio: 0, noDisponible: true };
-                    }
-                } catch (e) {
-                    basePrecios[item.ean] = { precio: 0, noDisponible: true };
-                }
-                renderizarCalculoComparativo();
-                break;
-            }
-        }
+        document.getElementById('comparison-zone').style.display = 'block';
     }
 
-    selectComerciosMapeados.addEventListener('change', renderizarCalculoComparativo);
-
-    function procesarRespuestaVtex(data) {
-        if (!data) return null;
-        try {
-            let products = data.products || (Array.isArray(data) ? data : []);
-            if (products.length === 0) return null;
-            const prod = products[0];
-            const brand = prod.brand || ""; const prodName = prod.productName || "Desconocido";
-            const completeName = brand ? `${brand} - ${prodName}` : prodName;
-            let spotPrice = null;
-            if (prod.priceRange?.sellingPrice) spotPrice = prod.priceRange.sellingPrice.lowPrice;
-            if ((spotPrice === null || spotPrice === undefined || spotPrice === 0) && prod.items?.[0]?.sellers?.[0]) {
-                const offer = prod.items[0].sellers[0].commertialOffer;
-                if (offer) spotPrice = offer.spotPrice || offer.Price || null;
-            }
-            if (spotPrice !== null && spotPrice > 0) return { name: completeName, price: parseFloat(spotPrice) };
-            return null;
-        } catch (err) { return null; }
-    }
-
-    // MODIFICADO: Añadida la integración completa de endpoints digitales incluyendo a COTO Digital
-    async function realizarBusquedaDePrecios(ean) {
-        let opciones = []; let nombreDetectado = "Producto";
-        if (!miLatitud || !miLongitud) throw new Error("Falta ubicación.");
-
-        const urlPreciosClaros = `https://d3e6htiiul5ek9.cloudfront.net/prod/producto?limit=50&id_producto=${ean}&lat=${miLatitud}&lng=${miLongitud}`;
-        const timestamp = Date.now();
-        const urlCarrefour = `https://www.carrefour.com.ar/api/io/_v/api/intelligent-search/product_search?query=${ean}&_nocache=${timestamp}`;
-        const urlMasOnline = `https://www.masonline.com.ar/api/io/_v/api/intelligent-search/product_search?query=${ean}&_nocache=${timestamp}`;
-        const urlVea = `https://www.vea.com.ar/api/io/_v/api/intelligent-search/product_search?query=${ean}&_nocache=${timestamp}`;
-        const urlDia = `https://diaonline.supermercadosdia.com.ar/api/io/_v/api/intelligent-search/product_search?query=${ean}&_nocache=${timestamp}`;
-        const urlCoto = `https://www.cotodigital3.com.ar/api/io/_v/api/intelligent-search/product_search?query=${ean}&_nocache=${timestamp}`;
-
-        const [resPrecios, resCarrefour, resMasOnline, resVea, resDia, resCoto] = await Promise.allSettled([
-            fetchViaProxies(urlPreciosClaros, "Precios Claros"),
-            fetchViaProxies(urlCarrefour, "Carrefour"),
-            fetchViaProxies(urlMasOnline, "MasOnline"),
-            fetchViaProxies(urlVea, "Vea"),
-            fetchViaProxies(urlDia, "Dia"),
-            fetchViaProxies(urlCoto, "Coto")
-        ]);
-
-        if (resPrecios.status === "fulfilled" && resPrecios.value) {
-            const data = resPrecios.value; if (data.producto?.nombre) nombreDetectado = data.producto.nombre;
-            let sucursalesExtraidas = data.sucursales || data.producto?.sucursales || [];
-            sucursalesExtraidas.forEach(suc => {
-                if (!suc.message && suc.preciosProducto) {
-                    const precio = suc.preciosProducto.precioLista || suc.preciosProducto.precio_unitario_con_iva;
-                    const dist = calcularDistancia(miLatitud, miLongitud, parseFloat(suc.lat), parseFloat(suc.lng));
-                    if (precio && parseFloat(precio) > 0 && dist <= 30) {
-                        opciones.push({ 
-                            cadena: "PreciosClaros", 
-                            nombre: `${suc.banderaDescripcion || 'Sucursal'} (${suc.sucursalNombre || 'S/N'})`, 
-                            direccion: suc.direccion || "Dirección no especificada", 
-                            distancia: dist, 
-                            precio: parseFloat(precio) 
-                        });
-                    }
-                }
-            });
-        }
-
-        const tiendasVtex = [
-            { respuesta: resCarrefour, nombreId: "Carrefour", etiqueta: "Carrefour Digital" },
-            { respuesta: resCoto, nombreId: "Coto", etiqueta: "Coto Digital" },
-            { respuesta: resMasOnline, nombreId: "masonline", etiqueta: "MasOnline Digital" },
-            { respuesta: resVea, nombreId: "vea", etiqueta: "Vea Digital" },
-            { respuesta: resDia, nombreId: "dia", etiqueta: "Dia Online" }
-        ];
-
-        tiendasVtex.forEach(tienda => {
-            if (tienda.respuesta.status === "fulfilled" && tienda.respuesta.value) {
-                const itemProcesado = procesarRespuestaVtex(tienda.respuesta.value);
-                if (itemProcesado) {
-                    if (nombreDetectado === "Producto") nombreDetectado = itemProcesado.name;
-                    opciones.push({ cadena: tienda.nombreId, nombre: tienda.etiqueta, direccion: "Tienda Digital", distancia: null, precio: itemProcesado.price });
-                }
-            }
-        });
-
-        opciones.sort((a, b) => a.precio - b.precio);
-        return { nombre: nombreDetectado, opciones: opciones };
-    }
-
-    btnBuscar.addEventListener('click', async () => {
-        const ean = document.getElementById('idProducto').value.trim();
-        if (!ean) return mostrarToast("Ingresa un código.", "fa-circle-exclamation");
-        listaSucursales.innerHTML = ""; errorBox.style.display = 'none';
-        btnBuscar.innerText = "Buscando (Radio 30KM)..."; btnBuscar.disabled = true;
-
-        try {
-            const resultado = await realizarBusquedaDePrecios(ean);
-            productoActualNombre = resultado.nombre; opcionesActuales = resultado.options || resultado.opciones;
-            const top5 = opcionesActuales.slice(0, 5);
-
-            if (top5.length > 0) {
-                document.getElementById('prodNombre').innerText = productoActualNombre;
-                top5.forEach((suc, index) => {
-                    listaSucursales.innerHTML += `
-                        <div class="sucursal-item ${suc.cadena.toLowerCase()}">
-                            <div class="sucursal-info">
-                                <p><span class="badge-pos">#${index + 1}</span> <strong>${suc.nombre}</strong></p>
-                                <span class="direccion-establecimiento">📍 ${suc.direccion}</span>
-                                <div style="margin-top:8px; display:flex; align-items:center;">
-                                    <input type="number" id="cant-${index}" class="selector-cantidad" value="1" min="1">
-                                    <button class="btn-anadir" onclick="seleccionarYAgregar(${index}, '${ean}')">➕ Añadir</button>
-                                </div>
-                            </div>
-                            <div class="precio-tag">$${suc.precio.toLocaleString('es-AR', {minimumFractionDigits: 2})}</div>
-                        </div>`;
-                });
-                resultadoDiv.style.display = 'block';
-            } else { throw new Error("Sin tiendas en rango."); }
-        } catch (err) { errorBox.innerText = err.message; errorBox.style.display = 'block'; }
-        finally { btnBuscar.innerText = "Buscar y Calcular Precios"; btnBuscar.disabled = false; }
-    });
-
-    function compartirLista() {
-        if (alacena.length === 0) return mostrarToast("Alacena vacía.", "fa-ban");
-        let mensaje = `📝 *Lista de Compras Optimizada (Alacena Inteligente)*\n\n`; let total = 0;
+    // --- CONTROL DE LA LISTA DE COMPRAS PERSISTENTE ---
+    function agregarALista() {
+        if (!prodaGuardar) return;
+        listaCompras.push(prodaGuardar);
+        localStorage.setItem('lista_compras', JSON.stringify(listaCompras));
+        renderLista();
         
-        alacena.forEach(item => {
-            const costo = item.precio * item.cantidad; total += costo;
-            mensaje += `• *${item.cantidad}x* ${item.producto}\n  🆔 EAN: ${item.ean}\n  💵 Precio: $${item.precio.toLocaleString('es-AR')} (Subtotal: $${costo.toLocaleString('es-AR')})\n  🛒 *Comprar en:* ${item.sucursal}\n\n`;
-        });
-        mensaje += `💵 *Monto Total Estimado Combinado:* $${total.toLocaleString('es-AR', {minimumFractionDigits: 2})}`;
+        // Reset manual de la caja de texto para escaneos continuos rápidos
+        document.getElementById('eanInput').value = "";
+        document.getElementById('comparison-zone').style.display = 'none';
+    }
 
-        if (navigator.share) { navigator.share({ title: 'Mi Lista de Compras por Comercio', text: mensaje }).catch(() => {}); }
-        else {
-            const t = document.createElement("textarea"); t.value = mensaje; document.body.appendChild(t); t.select(); document.execCommand('copy'); document.body.removeChild(t);
-            mostrarToast("¡Copiada con lugares de compra al portapapeles!", "fa-copy");
+    function eliminarDeLista(index) {
+        listaCompras.splice(index, 1);
+        localStorage.setItem('lista_compras', JSON.stringify(listaCompras));
+        renderLista();
+    }
+
+    function vaciarLista() {
+        if (listaCompras.length === 0) return;
+        if (confirm("¿Querés vaciar todos los elementos de la lista actual?")) {
+            listaCompras = [];
+            localStorage.removeItem('lista_compras');
+            renderLista();
         }
     }
-    btnCompartirLista.addEventListener('click', compartirLista);
 
-    btnActualizarLista.addEventListener('click', async () => {
-        if (alacena.length === 0) return mostrarToast("Alacena vacía.", "fa-ban");
-        btnActualizarLista.innerText = "🔄 Actualizando..."; btnActualizarLista.disabled = true;
+    function renderLista() {
+        const tbody = document.getElementById('list-body');
+        tbody.innerHTML = '';
+        let total = 0;
 
-        for (let i = 0; i < alacena.length; i++) {
-            try {
-                const res = await realizarBusquedaDePrecios(alacena[i].ean);
-                if (res.opciones && res.opciones.length > 0) {
-                    alacena[i].precio = res.opciones[0].precio;
-                    
-                    const identificadorEstablecimiento = res.opciones[0].direccion && res.opciones[0].direccion !== "Tienda Digital" 
-                        ? `${res.opciones[0].nombre} (${res.opciones[0].direccion})` 
-                        : res.opciones[0].nombre;
-                        
-                    alacena[i].sucursal = identificadorEstablecimiento;
-                    
-                    if(!mapeoPreciosPorComercio[identificadorEstablecimiento]) mapeoPreciosPorComercio[identificadorEstablecimiento] = {};
-                    mapeoPreciosPorComercio[identificadorEstablecimiento][alacena[i].ean] = { precio: res.opciones[0].precio };
-                }
-            } catch (e) {}
+        if (listaCompras.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:#a0aec0; font-style:italic;">La lista está vacía.</td></tr>`;
+            document.getElementById('list-total').innerText = `$0.00`;
+            return;
         }
-        localStorage.setItem('miAlacena', JSON.stringify(alacena));
-        localStorage.setItem('mapeoPreciosPorComercio', JSON.stringify(mapeoPreciosPorComercio));
-        actualizarVistaAlacena(); renderizarCalculoComparativo();
-        btnActualizarLista.innerText = "🔄 Actualizar Precios"; btnActualizarLista.disabled = false;
-        mostrarToast("Precios y comercios sincronizados", "fa-circle-check");
-    });
+
+        listaCompras.forEach((item, index) => {
+            total += item.precio;
+            const claseColor = item.lugar === "Coto" ? "coto-color" : "carrefour-color";
+            tbody.innerHTML += `
+                <tr>
+                    <td><strong>${item.titulo}</strong></td>
+                    <td><span class="${claseColor}" style="font-weight:bold;">${item.lugar}</span></td>
+                    <td>$${item.precio.toFixed(2)}</td>
+                    <td><button class="btn-del" onclick="eliminarDeLista(${index})">🗑️</button></td>
+                </tr>
+            `;
+        });
+
+        document.getElementById('list-total').innerText = `$${total.toFixed(2)}`;
+    }
 </script>
+
 </body>
 </html>
