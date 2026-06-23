@@ -3,12 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Comparador de Precios: Coto vs Carrefour</title>
+    <title>Comparador de Precios: Multitienda</title>
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <style>
         :root {
             --coto-color: #e53e3e;
             --carrefour-color: #2b6cb0;
+            --dia-color: #e32d5b;
+            --masonline-color: #39324a;
             --bg-winner: #f0fff4;
             --border-winner: #38a169;
         }
@@ -39,13 +41,13 @@
         input[type="number"] {
             flex: 1;
             padding: 12px;
-            border: 2px border #e2e8f0;
+            border: 2px solid #e2e8f0;
             border-radius: 8px;
             font-size: 16px;
             outline: none;
         }
         input[type="number"]:focus {
-            border-color: #cbcff0;
+            border-color: #cbd5e0;
         }
         button {
             padding: 12px 20px;
@@ -104,7 +106,6 @@
 
         .cards-grid {
             display: grid;
-            grid-cols: 1fr 1fr;
             grid-template-columns: 1fr 1fr;
             gap: 15px;
         }
@@ -140,6 +141,8 @@
         .market-title { font-size: 18px; font-weight: bold; margin-bottom: 10px; }
         .coto-color { color: var(--coto-color); }
         .carrefour-color { color: var(--carrefour-color); }
+        .dia-color {color: var(--dia-color);}
+        .masonline-color {color: var(--masonline-color);}
         
         .price-main { font-size: 24px; font-weight: 900; margin: 10px 0; }
         .price-old { font-size: 13px; color: #a0aec0; text-decoration: line-through; height: 18px; }
@@ -156,13 +159,35 @@
         }
         .error-local { color: #a0aec0; font-size: 14px; font-style: italic; }
 
-        /* Estilos Tabla de Lista de Compras */
-        .list-section { margin-top: 35px; border-top: 2px solid #e2e8f0; pt: 20px; padding-top: 20px;}
+        .list-section { margin-top: 35px; border-top: 2px solid #e2e8f0; padding-top: 20px;}
         .list-header-box { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
         table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
         th, td { padding: 10px; text-align: left; border-bottom: 1px solid #e2e8f0; }
         th { background-color: #f7fafc; color: #4a5568; }
         .total-box { text-align: right; font-size: 18px; font-weight: bold; margin-top: 15px; color: #2d3748; }
+        /* Estilos para la tabla */
+        .table-qty {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            justify-content: center;
+        }
+        .btn-qty {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            border: none;
+            background: #edf2f7;
+            cursor: pointer;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+        .btn-qty:hover { background: #cbd5e0; }
+        .td-price { font-weight: bold; color: #2d3748; }
+        .td-actions { text-align: center; }
     </style>
 </head>
 <body>
@@ -205,6 +230,18 @@
                 <div class="price-old" id="carrefour-old"></div>
                 <div class="price-main" id="carrefour-price">$0.00</div>
             </div>
+            <div class="card dia-border" id="card-dia">
+                <div class="market-title dia-color">Dia</div>
+                <div class="badge-container" id="dia-badge-container"></div>
+                <div class="price-old" id="dia-old"></div>
+                <div class="price-main" id="dia-price">$0.00</div>
+            </div>
+            <div class="card masonline-border" id="card-masonline">
+                <div class="market-title masonline-color">ChangoMas</div>
+                <div class="badge-container" id="masonline-badge-container"></div>
+                <div class="price-old" id="masonline-old"></div>
+                <div class="price-main" id="masonline-price">$0.00</div>
+            </div>
         </div>
 
         <button class="btn-add" onclick="agregarALista()">➕ Agregar el más barato a mi lista</button>
@@ -220,12 +257,12 @@
                 <tr>
                     <th>Producto</th>
                     <th>Sucursal</th>
+                    <th>Cantidad</th>
                     <th>Precio</th>
                     <th></th>
                 </tr>
             </thead>
-            <tbody id="list-body">
-                </tbody>
+            <tbody id="list-body"></tbody>
         </table>
         <div class="total-box">
             Total Estimado: <span id="list-total">$0.00</span>
@@ -238,10 +275,8 @@
     let prodaGuardar = null; 
     let listaCompras = JSON.parse(localStorage.getItem('lista_compras')) || [];
 
-    // Renderizar la lista al iniciar la página por si hay elementos guardados
     renderLista();
 
-    // --- MANEJO DE CÁMARA (html5-qrcode) ---
     function toggleCamara() {
         const container = document.getElementById('reader-container');
         const btn = document.getElementById('btn-camara');
@@ -256,7 +291,7 @@
 
         html5QrcodeScanner.start({ facingMode: "environment" }, config, onScanSuccess, onScanFailure)
         .catch(err => {
-            alert("No se pudo iniciar la cámara. Asegurate de estar usando localhost o una conexión segura HTTPS.");
+            alert("No se pudo iniciar la cámara. Asegurate de estar usando localhost o HTTPS.");
             detenerCamara();
         });
     }
@@ -282,12 +317,10 @@
 
     function onScanFailure(error) {}
 
-    // --- CONSULTA SIMULTÁNEA DE APIS (Sin Proxy / Libre de CORS) ---
     async function buscarPrecios() {
         const ean = document.getElementById('eanInput').value.trim();
         if (!ean) { alert("Por favor, ingresá un código de barras."); return; }
 
-        // Limpieza de UI previa
         document.getElementById('comparison-zone').style.display = 'none';
         document.getElementById('loader').style.display = 'block';
         
@@ -297,17 +330,25 @@
         document.getElementById('carrefour-badge-container').innerHTML = '';
         document.getElementById('coto-old').innerText = '';
         document.getElementById('carrefour-old').innerText = '';
-
-        // Endpoint Coto (Constructor.io - Público sin políticas restrictivas de origen)
+        document.getElementById('card-dia').classList.remove('winner');
+        document.getElementById('card-masonline').classList.remove('winner');
+        document.getElementById('dia-badge-container').innerHTML = '';
+        document.getElementById('masonline-badge-container').innerHTML = '';
+        document.getElementById('dia-old').innerText = '';
+        document.getElementById('masonline-old').innerText = '';
+        // Endpoints sin CORS
         const urlCoto = `https://ac.cnstrc.com/autocomplete/${ean}?c=cio-ui-autocomplete-1.29.3&key=key_r6xzz4IAoTWcipni&num_results_Products=1`;
-        
-        // Endpoint Carrefour Tradicional indexado (Evita el bloqueo estricto de la API inteligente)
-        const urlCarrefour = `https://www.carrefour.com.ar/api/catalog_system/pub/products/search?fq=alternateIds_Ean:${ean}`;
+        const proxyUrl = "https://corsproxy.io/?";
+        const urlCarrefour = `https://www.carrefour.com.ar/api/io/_v/api/intelligent-search/product_search?query=${ean}`;
+        const urlDia = `https://www.diaonline.supermercadosdia.com.ar/api/io/_v/api/intelligent-search/product_search?query=${ean}`;
+        const urlMasonline = `https://www.masonline.com.ar/api/io/_v/api/intelligent-search/product_search?query=${ean}`;
+
 
         let datosCoto = null;
         let datosCarrefour = null;
+        let datosDia = null;
+        let datosMasonline = null;
 
-        // Ejecución en paralelo
         await Promise.all([
             fetch(urlCoto).then(r => r.json()).then(j => datosCoto = j).catch(e => console.log("Error Coto:", e)),
             fetch(urlCarrefour).then(r => r.json()).then(j => datosCarrefour = j).catch(e => console.log("Error Carrefour:", e))
@@ -321,8 +362,10 @@
 
         let precioCotoFinal = null;
         let precioCarrefourFinal = null;
+        let precioDiaFinal = null;
+        let precioMasonlineFinal = null;
 
-        // 1. Mapeo e Inyección de Coto
+        // 1. Procesar Coto
         const prodCoto = datosCoto?.sections?.Products?.[0];
         if (prodCoto) {
             const data = prodCoto.data;
@@ -348,26 +391,33 @@
             document.getElementById('coto-price').innerHTML = `<span class="error-local">No encontrado</span>`;
         }
 
-        // 2. Mapeo e Inyección de Carrefour
-        const prodCarrefour = datosCarrefour?.[0];
+        // 2. Procesar Carrefour
+        // Se usa la variable proxyUrl definida anteriormente
+        const respCarrefour = await fetch(proxyUrl + encodeURIComponent(urlCarrefour));
+        const jsonCarrefour = await respCarrefour.json();
+        const prodCarrefour = jsonCarrefour.products?.[0]; // Acceso seguro
+
         if (prodCarrefour) {
-            // Si Coto no lo encontró, tomamos los datos base desde Carrefour
             if (finalTitle === "Producto Desconocido") {
                 finalTitle = prodCarrefour.productName;
                 finalBrand = prodCarrefour.brand || "Genérico";
+                // Corrección de acceso a la imagen
                 finalImg = prodCarrefour.items?.[0]?.images?.[0]?.imageUrl || finalImg;
             }
 
-            const sItem = prodCarrefour.items?.[0]?.sellers?.[0]?.commertialRecord;
-            if (sItem) {
-                let precioLista = sItem.ListPrice;
-                let precioSpot = sItem.Price;
+            // Acceso a la estructura de precios de VTEX
+            const offer = prodCarrefour.items?.[0]?.sellers?.[0]?.commertialOffer;
+            
+            if (offer) {
+                let precioLista = offer.ListPrice;
+                let precioSpot = offer.Price; // Este es el precio final con descuento
 
                 if (precioLista > precioSpot) {
                     let dtoPorcentaje = Math.round(((precioLista - precioSpot) / precioLista) * 100);
                     document.getElementById('carrefour-badge-container').innerHTML = `<span class="discount-badge">${dtoPorcentaje}% DTO</span>`;
                     document.getElementById('carrefour-old').innerText = `Antes: $${precioLista}`;
                 }
+                
                 precioCarrefourFinal = parseFloat(precioSpot);
                 document.getElementById('carrefour-price').innerText = `$${precioCarrefourFinal.toFixed(2)}`;
             } else {
@@ -377,18 +427,15 @@
             document.getElementById('carrefour-price').innerHTML = `<span class="error-local">No encontrado</span>`;
         }
 
-        // Romper si no está en ninguno
         if (!prodCoto && !prodCarrefour) {
-            alert("El producto no se encuentra disponible en las bases de datos de Coto ni Carrefour.");
+            alert("No se encontró el producto en ninguna de las dos tiendas.");
             return;
         }
 
-        // Mostrar datos generales en el Card superior
         document.getElementById('prod-title').innerText = finalTitle;
         document.getElementById('prod-brand').innerText = finalBrand;
         document.getElementById('prod-img').src = finalImg;
 
-        // Comparativa para fijar ganador comercial
         let mejorLugar = "";
         let mejorPrecio = 0;
 
@@ -412,8 +459,8 @@
             mejorPrecio = precioCarrefourFinal;
         }
 
-        // Guardado temporal estructurado para la lista
         prodaGuardar = {
+            ean: document.getElementById('eanInput').value.trim(), // Importante
             titulo: finalTitle,
             lugar: mejorLugar,
             precio: mejorPrecio
@@ -422,15 +469,29 @@
         document.getElementById('comparison-zone').style.display = 'block';
     }
 
-    // --- CONTROL DE LA LISTA DE COMPRAS PERSISTENTE ---
     function agregarALista() {
         if (!prodaGuardar) return;
-        listaCompras.push(prodaGuardar);
+        
+        // Asumimos que el EAN está en el input al momento de guardar
+        const eanActual = document.getElementById('eanInput').value.trim();
+        
+        // Buscamos si ya existe
+        const index = listaCompras.findIndex(item => item.ean === eanActual);
+
+        if (index !== -1) {
+            // Si existe, aumentamos cantidad
+            listaCompras[index].cantidad += 1;
+        } else {
+            // Si no, agregamos nuevo con cantidad 1
+            listaCompras.push({
+                ...prodaGuardar,
+                ean: eanActual,
+                cantidad: 1
+            });
+        }
+
         localStorage.setItem('lista_compras', JSON.stringify(listaCompras));
         renderLista();
-        
-        // Reset manual de la caja de texto para escaneos continuos rápidos
-        document.getElementById('eanInput').value = "";
         document.getElementById('comparison-zone').style.display = 'none';
     }
 
@@ -454,26 +515,46 @@
         tbody.innerHTML = '';
         let total = 0;
 
-        if (listaCompras.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:#a0aec0; font-style:italic;">La lista está vacía.</td></tr>`;
-            document.getElementById('list-total').innerText = `$0.00`;
-            return;
-        }
-
         listaCompras.forEach((item, index) => {
-            total += item.precio;
+            total += (item.precio * item.cantidad);
             const claseColor = item.lugar === "Coto" ? "coto-color" : "carrefour-color";
+            
             tbody.innerHTML += `
-                <tr>
-                    <td><strong>${item.titulo}</strong></td>
-                    <td><span class="${claseColor}" style="font-weight:bold;">${item.lugar}</span></td>
-                    <td>$${item.precio.toFixed(2)}</td>
-                    <td><button class="btn-del" onclick="eliminarDeLista(${index})">🗑️</button></td>
-                </tr>
-            `;
+            <tr>
+                <td style="padding: 12px;">
+                    <div style="font-size: 14px; font-weight: 600;">${item.titulo}</div>
+                    <div style="font-size: 11px; color: #a0aec0;">EAN: ${item.ean}</div>
+                </td>
+                <td style="text-align: center;">
+                    <span class="${claseColor}" style="padding: 4px 8px; border-radius: 4px; font-size: 12px; background: #f7fafc;">
+                        ${item.lugar}
+                    </span>
+                </td>
+                <td>
+                    <div class="table-qty">
+                        <button class="btn-qty" onclick="cambiarCantidad(${index}, -1)">-</button>
+                        <span style="min-width: 20px; text-align: center; font-weight: bold;">${item.cantidad}</span>
+                        <button class="btn-qty" onclick="cambiarCantidad(${index}, 1)">+</button>
+                    </div>
+                </td>
+                <td class="td-price">$${(item.precio * item.cantidad).toFixed(2)}</td>
+                <td class="td-actions">
+                    <button class="btn-del" onclick="eliminarDeLista(${index})" title="Eliminar">🗑️</button>
+                </td>
+            </tr>
+        `;
         });
 
         document.getElementById('list-total').innerText = `$${total.toFixed(2)}`;
+    }
+
+    function cambiarCantidad(index, delta) {
+        listaCompras[index].cantidad += delta;
+        if (listaCompras[index].cantidad <= 0) {
+            listaCompras.splice(index, 1);
+        }
+        localStorage.setItem('lista_compras', JSON.stringify(listaCompras));
+        renderLista();
     }
 </script>
 
