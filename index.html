@@ -497,7 +497,7 @@ body {
   <div id="tab-buscar">
     <div class="search-row">
       <input type="number" id="eanInput" placeholder="Código de barras EAN" inputmode="numeric">
-      <button class="btn btn-info" id="btn-cam" onclick="toggleCamara()">▌║▌│║▌║│▌</button>
+      <button class="btn btn-blue" id="btn-cam" onclick="toggleCamara()">Scan</button>
       <button class="btn btn-dark" onclick="buscarPrecios()">Buscar</button>
     </div>
 
@@ -683,7 +683,7 @@ function detenerCamara() {
     html5QrcodeScanner.stop().then(() => {
       html5QrcodeScanner = null;
       c.style.display = 'none';
-      btn.textContent = '📷';
+      btn.textContent = 'Scan';
     }).catch(() => {});
   }
 }
