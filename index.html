@@ -222,25 +222,25 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;b
 
       <div class="cards-grid">
         <div class="price-card coto-top" id="card-coto">
-          <img class="store-logo" src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/1e/Coto_logo.svg/320px-Coto_logo.svg.png" alt="Coto" onerror="this.style.display='none'">
+          <div class="market-name coto">Coto Digital</div>
           <div class="badge-slot" id="coto-badge-slot"></div>
           <div class="price-old" id="coto-old"></div>
           <div class="price-main" id="coto-price">—</div>
         </div>
         <div class="price-card carrefour-top" id="card-carrefour">
-          <img class="store-logo" src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/5b/Carrefour_logo.svg/320px-Carrefour_logo.svg.png" alt="Carrefour" onerror="this.style.display='none'">
+          <div class="market-name carrefour">Carrefour</div>
           <div class="badge-slot" id="carrefour-badge-slot"></div>
           <div class="price-old" id="carrefour-old"></div>
           <div class="price-main" id="carrefour-price">—</div>
         </div>
         <div class="price-card dia-top" id="card-dia">
-          <img class="store-logo" src="https://upload.wikimedia.org/wikipedia/commons/thumb/e/e0/Dia_logo.svg/320px-Dia_logo.svg.png" alt="Día" onerror="this.style.display='none'">
+          <div class="market-name dia">Día</div>
           <div class="badge-slot" id="dia-badge-slot"></div>
           <div class="price-old" id="dia-old"></div>
           <div class="price-main" id="dia-price">—</div>
         </div>
         <div class="price-card masonline-top" id="card-masonline">
-          <img class="store-logo" src="https://www.masonline.com.ar/arquivos/logo-changomas-header.png" alt="ChangoMás" onerror="this.src='https://via.placeholder.com/80x28/2d2440/ffffff?text=ChangoM%C3%A1s'">
+          <div class="market-name masonline">ChangoMás</div>
           <div class="badge-slot" id="masonline-badge-slot"></div>
           <div class="price-old" id="masonline-old"></div>
           <div class="price-main" id="masonline-price">—</div>
@@ -354,7 +354,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;b
 const STORES = {
   coto:      { id:'coto',      name:'Coto',      color:'#c0392b', logo:'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1e/Coto_logo.svg/120px-Coto_logo.svg.png' },
   carrefour: { id:'carrefour', name:'Carrefour', color:'#1a56a0', logo:'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5b/Carrefour_logo.svg/120px-Carrefour_logo.svg.png', base:'https://www.carrefour.com.ar' },
-  dia:       { id:'dia',       name:'Día',       color:'#c0235b', logo:'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e0/Dia_logo.svg/120px-Dia_logo.svg.png', base:'https://www.diaonline.supermercadosdia.com.ar' },
+  dia:       { id:'dia',       name:'Día',       color:'#c0235b', logo:'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e0/Dia_logo.svg/120px-Dia_logo.svg.png', base:'https://diaonline.supermercadosdia.com.ar' },
   masonline: { id:'masonline', name:'ChangoMás', color:'#2d2440', logo:'https://www.masonline.com.ar/arquivos/logo-changomas-header.png', base:'https://www.masonline.com.ar' }
 };
 const PROXY = "https://corsproxy.io/?";
