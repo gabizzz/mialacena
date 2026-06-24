@@ -112,21 +112,72 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;b
 .crown{font-size:13px;margin-left:4px;}
 
 /* LIST ITEMS */
-.list-controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px;}
-.list-controls select{flex:1;min-width:130px;padding:9px 12px;border:1.5px solid var(--g200);border-radius:var(--rmd);font-size:13px;background:white;outline:none;}
-.list-item{background:white;border:1px solid var(--g200);border-radius:var(--rmd);padding:10px 12px;display:flex;align-items:center;gap:8px;margin-bottom:8px;}
-.list-item.stale{border-left:3px solid var(--amber);}
-.list-item.no-price{border-left:3px solid var(--red);opacity:.75;}
-.item-logo{width:36px;height:36px;object-fit:contain;border:1px solid var(--g200);border-radius:var(--rsm);background:white;flex-shrink:0;padding:2px;}
-.item-name{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.item-meta{font-size:11px;color:var(--g600);margin-top:1px;}
-.qty-ctrl{display:flex;align-items:center;gap:5px;flex-shrink:0;}
-.qty-btn{width:24px;height:24px;border-radius:50%;border:1px solid var(--g300);background:white;cursor:pointer;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;}
-.qty-btn:hover{background:var(--g100);}
-.qty-num{font-weight:700;font-size:13px;min-width:18px;text-align:center;}
-.item-price{font-weight:700;font-size:13px;min-width:65px;text-align:right;flex-shrink:0;}
-.btn-del{background:none;border:none;font-size:14px;cursor:pointer;padding:3px;opacity:.45;}
-.btn-del:hover{opacity:1;}
+.list-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.list-controls select {
+  flex: 1;
+  min-width: 140px;
+  padding: 9px 12px;
+  border: 1.5px solid var(--gray-200);
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  background: white;
+  outline: none;
+}
+.list-item {
+  background: white;
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.list-item.stale-warning { border-left: 3px solid var(--amber); }
+.list-item.not-found-warning { border-left: 3px solid var(--red); opacity: 0.75; }
+.item-name { font-size: 14px; font-weight: 600; flex: 1; }
+.item-meta { font-size: 11px; color: var(--gray-600); margin-top: 2px; }
+.item-store-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+.badge-coto { background: #fde8e8; color: var(--coto); }
+.badge-carrefour { background: #dbeafe; color: var(--carrefour); }
+.badge-dia { background: #fce7f3; color: var(--dia); }
+.badge-masonline { background: #ede9fe; color: var(--masonline); }
+.badge-unknown { background: var(--gray-100); color: var(--gray-600); }
+.qty-ctrl {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.qty-btn {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px solid var(--gray-300);
+  background: white;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.qty-btn:hover { background: var(--gray-100); }
+.qty-num { font-weight: 700; font-size: 14px; min-width: 20px; text-align: center; }
+.item-price { font-weight: 700; font-size: 14px; min-width: 70px; text-align: right; }
+.btn-del { background: none; border: none; font-size: 15px; cursor: pointer; padding: 4px; opacity: 0.5; }
+.btn-del:hover { opacity: 1; }
 
 /* TOTAL BAR */
 .total-bar{background:var(--g800);color:white;padding:16px 18px;border-radius:var(--rlg);margin-bottom:14px;}
@@ -352,10 +403,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;b
 //  STORE CONFIG
 // ═══════════════════════════════════
 const STORES = {
-  coto:      { id:'coto',      name:'Coto',      color:'#c0392b', logo:'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1e/Coto_logo.svg/120px-Coto_logo.svg.png' },
-  carrefour: { id:'carrefour', name:'Carrefour', color:'#1a56a0', logo:'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5b/Carrefour_logo.svg/120px-Carrefour_logo.svg.png', base:'https://www.carrefour.com.ar' },
-  dia:       { id:'dia',       name:'Día',       color:'#c0235b', logo:'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e0/Dia_logo.svg/120px-Dia_logo.svg.png', base:'https://diaonline.supermercadosdia.com.ar' },
-  masonline: { id:'masonline', name:'ChangoMás', color:'#2d2440', logo:'https://www.masonline.com.ar/arquivos/logo-changomas-header.png', base:'https://www.masonline.com.ar' }
+  coto:      { id:'coto',      name:'Coto',      color:'#c0392b' },
+  carrefour: { id:'carrefour', name:'Carrefour', color:'#1a56a0', base:'https://www.carrefour.com.ar' },
+  dia:       { id:'dia',       name:'Día',       color:'#c0235b', base:'https://diaonline.supermercadosdia.com.ar' },
+  masonline: { id:'masonline', name:'ChangoMás', color:'#2d2440', base:'https://www.masonline.com.ar' }
 };
 const PROXY = "https://corsproxy.io/?";
 
