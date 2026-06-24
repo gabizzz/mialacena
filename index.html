@@ -100,6 +100,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;b
 .store-compare-row:last-child{border-bottom:none;}
 .store-compare-row.winner-row{background:var(--green-light);}
 .store-compare-row.incomplete{opacity:.6;}
+.store-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
 .sc-logo{width:48px;flex-shrink:0;text-align:center;}
 .sc-logo img{height:22px;object-fit:contain;}
 .sc-info{flex:1;}
@@ -657,19 +663,19 @@ function renderLista() {
     bodyEl.innerHTML+=`
     <div class="list-item ${cls}">
       <div style="flex:1;min-width:0">
-        <div class="item-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${item.titulo}</div>
-        <div class="item-meta">EAN: ${item.ean} · ${ts}</div>
-        ${stale ? '<div class="item-meta" style="color:var(--amber)">⚠ Precio desactualizado</div>' : ''}
-        ${missing ? '<div class="item-meta" style="color:var(--red)">✕ Sin precio disponible</div>' : ''}
+      <div class="item-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${item.lugar}</div>
+        <div class="item-name">${item.titulo}</div>
+        <div class="item-meta">EAN ${item.ean} · ${ts}</div>
+        ${stale?'<div class="item-meta" style="color:var(--amber)">⚠ Precio desactualizado</div>':''}
+        ${noPrice?'<div class="item-meta" style="color:var(--red)">Sin precio</div>':''}
       </div>
-      <span class="item-store-badge ${badgeClass}">${item.lugar || '?'}</span>
       <div class="qty-ctrl">
-        <button class="qty-btn" onclick="cambiarCantidad('${profileId}',${idx},-1)">−</button>
-        <span class="qty-num">${item.cantidad || 1}</span>
-        <button class="qty-btn" onclick="cambiarCantidad('${profileId}',${idx},1)">+</button>
+        <button class="qty-btn" onclick="cambiarCantidad('${pid}',${idx},-1)">−</button>
+        <span class="qty-num">${item.cantidad||1}</span>
+        <button class="qty-btn" onclick="cambiarCantidad('${pid}',${idx},1)">+</button>
       </div>
-      <div class="item-price">$${subtotal.toFixed(2)}</div>
-      <button class="btn-del" onclick="eliminarItem('${profileId}',${idx})">🗑</button>
+      <div class="item-price">$${sub.toFixed(2)}</div>
+      <button class="btn-del" onclick="eliminarItem('${pid}',${idx})">🗑</button>
     </div>`;
   });
 
@@ -703,20 +709,21 @@ function renderStoreCompare(totals,missing,found,totalProds) {
     const isWinner=e.k===winner?.k&&e.found>0;
     const incomplete=e.missing>0;
     const pct=e.v>0?Math.round((e.v/maxVal)*100):0;
-    html+= `
-    <div class="store-compare-row ${isWinner ? 'winner-row' : ''}">
-      <div class="store-dot" style="background:${colors[e.k]}"></div>
-      <div style="flex:1">
-        <div class="store-compare-name">${e.name} ${isWinner ? '<span class="winner-crown">🏆</span>' : ''}</div>
-        <div class="store-compare-items">${e.found} de ${total} productos encontrados</div>
-        ${e.missing > 0 ? `<div class="store-compare-missing">⚠ ${e.missing} productos no encontrados (precio estimado del más barato)</div>` : ''}
+    html+=`
+    <div class="store-compare-row ${isWinner ? 'winner-row' : ''} ${incomplete ? 'incomplete' : ''}">
+      <div class="sc-logo">
+        <div class="store-dot" style="background:${e.color}"></div>
       </div>
+      <div class="sc-info">
+        <div class="sc-name">${e.name}${isWinner ? '<span class="crown">🏆</span>' : ''}</div>
+        <div class="sc-sub">${e.found} de ${totalProds} productos${e.found === 0 ? ' (no disponible)' : ''}</div>
+        ${e.missing > 0 ? `<span class="sc-missing-tag">⚠ faltan ${e.missing} productos — no incluidos</span>` : ''}
+      </div>
+      ${e.found > 0 ? `
       <div style="display:flex;align-items:center;gap:8px">
-        <div class="store-bar-wrap" style="width:60px">
-          <div class="store-bar" style="width:${pct}%;background:${colors[e.k]}"></div>
-        </div>
-        <div class="store-compare-total">$${e.v.toFixed(2)}</div>
-      </div>
+        <div class="sc-bar-wrap"><div class="sc-bar" style="width:${pct}%;background:${e.color}"></div></div>
+        <div class="sc-total" style="color:${isWinner ? 'var(--green)' : 'var(--g800)'}">$${e.v.toFixed(2)}</div>
+      </div>` : `<div class="sc-total" style="color:var(--g400)">—</div>`}
     </div>`;
   });
   tableEl.innerHTML=html;
