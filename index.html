@@ -1,562 +1,1213 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Comparador de Precios: Multitienda</title>
-    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
-    <style>
-        :root {
-            --coto-color: #e53e3e;
-            --carrefour-color: #2b6cb0;
-            --dia-color: #e32d5b;
-            --masonline-color: #39324a;
-            --bg-winner: #f0fff4;
-            --border-winner: #38a169;
-        }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background-color: #f7fafc;
-            margin: 0;
-            padding: 20px;
-            color: #2d3748;
-        }
-        .container {
-            max-width: 600px;
-            margin: 0 auto;
-            background: white;
-            padding: 20px;
-            border-radius: 12px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-        }
-        h1, h2 {
-            text-align: center;
-            margin-top: 0;
-        }
-        .search-box {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-        }
-        input[type="number"] {
-            flex: 1;
-            padding: 12px;
-            border: 2px solid #e2e8f0;
-            border-radius: 8px;
-            font-size: 16px;
-            outline: none;
-        }
-        input[type="number"]:focus {
-            border-color: #cbd5e0;
-        }
-        button {
-            padding: 12px 20px;
-            border: none;
-            border-radius: 8px;
-            font-weight: bold;
-            cursor: pointer;
-            font-size: 14px;
-            transition: transform 0.1s, opacity 0.2s;
-        }
-        button:active {
-            transform: scale(0.97);
-        }
-        .btn-search { background-color: #4a5568; color: white; }
-        .btn-cam { background-color: #3182ce; color: white; }
-        .btn-add { background-color: #38a169; color: white; width: 100%; margin-top: 15px; padding: 14px; font-size: 15px;}
-        .btn-clear { background-color: #e53e3e; color: white; padding: 6px 12px; font-size: 12px; }
-        .btn-del { background: none; border: none; cursor: pointer; font-size: 16px; }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SpotPrice — Comparador de Precios</title>
+<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+<style>
+:root {
+  --coto: #c0392b;
+  --carrefour: #1a56a0;
+  --dia: #c0235b;
+  --masonline: #2d2440;
+  --green: #1a7a4a;
+  --green-light: #e8f5ee;
+  --amber: #b45309;
+  --amber-light: #fef3c7;
+  --red: #b91c1c;
+  --red-light: #fee2e2;
+  --gray-50: #f8fafc;
+  --gray-100: #f1f5f9;
+  --gray-200: #e2e8f0;
+  --gray-300: #cbd5e1;
+  --gray-400: #94a3b8;
+  --gray-600: #475569;
+  --gray-700: #334155;
+  --gray-800: #1e293b;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: var(--gray-50);
+  color: var(--gray-800);
+  min-height: 100vh;
+}
 
-        #reader-container {
-            display: none;
-            margin-bottom: 20px;
-            border: 2px dashed #cbd5e0;
-            border-radius: 8px;
-            overflow: hidden;
-            background: #000;
-        }
+/* ── APP SHELL ── */
+.app-header {
+  background: var(--gray-800);
+  color: #fff;
+  padding: 14px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.app-logo { font-size: 17px; font-weight: 700; letter-spacing: -0.3px; }
+.app-logo span { color: #60a5fa; }
 
-        #loader {
-            display: none;
-            text-align: center;
-            font-weight: bold;
-            color: #4a5568;
-            margin: 20px 0;
-        }
+.container { max-width: 640px; margin: 0 auto; padding: 20px 16px 80px; }
 
-        .product-header {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            background: #edf2f7;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-        }
-        .product-header img {
-            width: 80px;
-            height: 80px;
-            object-fit: contain;
-            background: white;
-            border-radius: 6px;
-            border: 1px solid #e2e8f0;
-        }
-        .product-info h3 { margin: 0 0 5px 0; font-size: 16px; }
-        .product-info p { margin: 0; color: #718096; font-size: 14px; }
+/* ── TABS ── */
+.tab-nav {
+  display: flex;
+  background: var(--gray-100);
+  border-radius: var(--radius-md);
+  padding: 4px;
+  margin-bottom: 20px;
+  gap: 4px;
+}
+.tab-btn {
+  flex: 1;
+  padding: 8px 10px;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--gray-600);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.tab-btn.active {
+  background: white;
+  color: var(--gray-800);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
 
-        .cards-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-        }
-        .card {
-            border: 2px solid #e2e8f0;
-            border-radius: 10px;
-            padding: 15px;
-            text-align: center;
-            position: relative;
-            background: #fff;
-        }
-        .card.coto-border { border-top: 6px solid var(--coto-color); }
-        .card.carrefour-border { border-top: 6px solid var(--carrefour-color); }
-        
-        .card.winner {
-            background-color: var(--bg-winner);
-            border-color: var(--border-winner);
-        }
-        .card.winner::after {
-            content: "🏆 El más barato";
-            position: absolute;
-            top: -12px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: var(--border-winner);
-            color: white;
-            font-size: 11px;
-            padding: 2px 8px;
-            border-radius: 10px;
-            font-weight: bold;
-        }
+/* ── SEARCH ── */
+.search-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.search-row input {
+  flex: 1;
+  padding: 11px 14px;
+  border: 1.5px solid var(--gray-200);
+  border-radius: var(--radius-md);
+  font-size: 15px;
+  background: white;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.search-row input:focus { border-color: #60a5fa; }
+.btn { padding: 10px 16px; border: none; border-radius: var(--radius-md); font-weight: 600; cursor: pointer; font-size: 13px; transition: opacity 0.15s, transform 0.1s; }
+.btn:active { transform: scale(0.97); }
+.btn-dark { background: var(--gray-800); color: white; }
+.btn-blue { background: #3b82f6; color: white; }
+.btn-green { background: var(--green); color: white; }
+.btn-red { background: var(--red); color: white; }
+.btn-ghost { background: var(--gray-100); color: var(--gray-700); border: 1px solid var(--gray-200); }
+.btn-sm { padding: 6px 12px; font-size: 12px; }
 
-        .market-title { font-size: 18px; font-weight: bold; margin-bottom: 10px; }
-        .coto-color { color: var(--coto-color); }
-        .carrefour-color { color: var(--carrefour-color); }
-        .dia-color {color: var(--dia-color);}
-        .masonline-color {color: var(--masonline-color);}
-        
-        .price-main { font-size: 24px; font-weight: 900; margin: 10px 0; }
-        .price-old { font-size: 13px; color: #a0aec0; text-decoration: line-through; height: 18px; }
-        
-        .badge-container { height: 25px; margin-bottom: 5px; }
-        .discount-badge {
-            background-color: #feebc8;
-            color: #c05621;
-            font-size: 11px;
-            font-weight: bold;
-            padding: 3px 8px;
-            border-radius: 4px;
-            display: inline-block;
-        }
-        .error-local { color: #a0aec0; font-size: 14px; font-style: italic; }
+/* ── LOADER ── */
+.loader {
+  display: none;
+  text-align: center;
+  padding: 32px;
+  color: var(--gray-600);
+  font-weight: 500;
+}
+.loader-dots::after {
+  content: '...';
+  animation: dots 1.2s infinite;
+}
+@keyframes dots {
+  0%, 33% { content: '.'; }
+  34%, 66% { content: '..'; }
+  67%, 100% { content: '...'; }
+}
 
-        .list-section { margin-top: 35px; border-top: 2px solid #e2e8f0; padding-top: 20px;}
-        .list-header-box { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
-        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #e2e8f0; }
-        th { background-color: #f7fafc; color: #4a5568; }
-        .total-box { text-align: right; font-size: 18px; font-weight: bold; margin-top: 15px; color: #2d3748; }
-        /* Estilos para la tabla */
-        .table-qty {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            justify-content: center;
-        }
-        .btn-qty {
-            width: 28px;
-            height: 28px;
-            border-radius: 50%;
-            border: none;
-            background: #edf2f7;
-            cursor: pointer;
-            font-weight: bold;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: background 0.2s;
-        }
-        .btn-qty:hover { background: #cbd5e0; }
-        .td-price { font-weight: bold; color: #2d3748; }
-        .td-actions { text-align: center; }
-    </style>
+/* ── PRODUCT HEADER ── */
+.product-header {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  background: white;
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-lg);
+  padding: 14px;
+  margin-bottom: 16px;
+}
+.product-header img {
+  width: 72px;
+  height: 72px;
+  object-fit: contain;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--gray-200);
+  background: white;
+  flex-shrink: 0;
+}
+.product-name { font-size: 15px; font-weight: 600; line-height: 1.3; margin-bottom: 4px; }
+.product-brand { font-size: 13px; color: var(--gray-600); }
+
+/* ── PRICE CARDS GRID ── */
+.cards-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.price-card {
+  background: white;
+  border: 1.5px solid var(--gray-200);
+  border-radius: var(--radius-lg);
+  padding: 14px;
+  text-align: center;
+  position: relative;
+  transition: border-color 0.2s;
+}
+.price-card.coto-top { border-top: 5px solid var(--coto); }
+.price-card.carrefour-top { border-top: 5px solid var(--carrefour); }
+.price-card.dia-top { border-top: 5px solid var(--dia); }
+.price-card.masonline-top { border-top: 5px solid var(--masonline); }
+.price-card.winner {
+  border-color: var(--green);
+  background: var(--green-light);
+}
+.price-card.winner::before {
+  content: "✓ más barato";
+  position: absolute;
+  top: -11px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--green);
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 9px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+.market-name { font-size: 13px; font-weight: 700; margin-bottom: 8px; }
+.market-name.coto { color: var(--coto); }
+.market-name.carrefour { color: var(--carrefour); }
+.market-name.dia { color: var(--dia); }
+.market-name.masonline { color: var(--masonline); }
+.price-old { font-size: 11px; color: var(--gray-400); text-decoration: line-through; min-height: 16px; }
+.price-main { font-size: 22px; font-weight: 800; margin: 4px 0; color: var(--gray-800); }
+.price-card.winner .price-main { color: var(--green); }
+.discount-badge {
+  display: inline-block;
+  background: var(--amber-light);
+  color: var(--amber);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 4px;
+  min-height: 18px;
+}
+.price-na { color: var(--gray-400); font-size: 13px; font-style: italic; }
+.badge-slot { min-height: 22px; margin-bottom: 2px; }
+
+/* ── ADD TO LIST ── */
+.profile-selector-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.profile-selector-row select {
+  flex: 1;
+  padding: 10px 12px;
+  border: 1.5px solid var(--gray-200);
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  background: white;
+  color: var(--gray-800);
+  outline: none;
+}
+.btn-add-list {
+  width: 100%;
+  padding: 14px;
+  font-size: 15px;
+  margin-top: 4px;
+}
+
+/* ── QR SCANNER ── */
+#reader-container {
+  display: none;
+  margin-bottom: 16px;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  border: 2px dashed var(--gray-300);
+}
+
+/* ── PROFILES SECTION ── */
+.profiles-list { display: flex; flex-direction: column; gap: 10px; }
+.profile-item {
+  background: white;
+  border: 1.5px solid var(--gray-200);
+  border-radius: var(--radius-lg);
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.profile-item.active-profile { border-color: #3b82f6; }
+.profile-info { flex: 1; }
+.profile-title { font-size: 15px; font-weight: 600; }
+.profile-count { font-size: 12px; color: var(--gray-600); margin-top: 2px; }
+.profile-actions { display: flex; gap: 6px; }
+.new-profile-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+}
+.new-profile-row input {
+  flex: 1;
+  padding: 10px 12px;
+  border: 1.5px solid var(--gray-200);
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  outline: none;
+}
+.new-profile-row input:focus { border-color: #3b82f6; }
+.emoji-pick { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+.emoji-opt {
+  font-size: 20px;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid transparent;
+  cursor: pointer;
+  background: var(--gray-100);
+  transition: border-color 0.15s;
+}
+.emoji-opt.sel { border-color: #3b82f6; background: #eff6ff; }
+
+/* ── SHOPPING LIST ── */
+.list-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.list-controls select {
+  flex: 1;
+  min-width: 140px;
+  padding: 9px 12px;
+  border: 1.5px solid var(--gray-200);
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  background: white;
+  outline: none;
+}
+.list-item {
+  background: white;
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.list-item.stale-warning { border-left: 3px solid var(--amber); }
+.list-item.not-found-warning { border-left: 3px solid var(--red); opacity: 0.75; }
+.item-name { font-size: 14px; font-weight: 600; flex: 1; }
+.item-meta { font-size: 11px; color: var(--gray-600); margin-top: 2px; }
+.item-store-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+.badge-coto { background: #fde8e8; color: var(--coto); }
+.badge-carrefour { background: #dbeafe; color: var(--carrefour); }
+.badge-dia { background: #fce7f3; color: var(--dia); }
+.badge-masonline { background: #ede9fe; color: var(--masonline); }
+.badge-unknown { background: var(--gray-100); color: var(--gray-600); }
+.qty-ctrl {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.qty-btn {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px solid var(--gray-300);
+  background: white;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.qty-btn:hover { background: var(--gray-100); }
+.qty-num { font-weight: 700; font-size: 14px; min-width: 20px; text-align: center; }
+.item-price { font-weight: 700; font-size: 14px; min-width: 70px; text-align: right; }
+.btn-del { background: none; border: none; font-size: 15px; cursor: pointer; padding: 4px; opacity: 0.5; }
+.btn-del:hover { opacity: 1; }
+
+/* ── TOTALS / COMPARISON ── */
+.total-bar {
+  background: var(--gray-800);
+  color: white;
+  padding: 16px 18px;
+  border-radius: var(--radius-lg);
+  margin-bottom: 14px;
+}
+.total-bar-label { font-size: 12px; color: #94a3b8; margin-bottom: 4px; }
+.total-bar-amount { font-size: 26px; font-weight: 800; }
+.total-bar-sub { font-size: 12px; color: #94a3b8; margin-top: 2px; }
+
+.store-compare {
+  background: white;
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  margin-bottom: 14px;
+}
+.store-compare-header {
+  padding: 12px 16px;
+  background: var(--gray-50);
+  border-bottom: 1px solid var(--gray-200);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--gray-700);
+}
+.store-compare-row {
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid var(--gray-100);
+}
+.store-compare-row:last-child { border-bottom: none; }
+.store-compare-row.winner-row { background: var(--green-light); }
+.store-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.store-compare-name { font-size: 14px; font-weight: 600; flex: 1; }
+.store-compare-items { font-size: 12px; color: var(--gray-600); }
+.store-compare-missing { font-size: 11px; color: var(--red); margin-top: 1px; }
+.store-compare-total { font-size: 16px; font-weight: 800; }
+.winner-crown { font-size: 14px; margin-left: 6px; }
+.store-bar-wrap { flex: 1; background: var(--gray-100); border-radius: 4px; height: 5px; overflow: hidden; margin: 0 8px; }
+.store-bar { height: 100%; border-radius: 4px; transition: width 0.4s ease; }
+
+/* ── MISSING ITEMS WARN ── */
+.missing-alert {
+  background: var(--red-light);
+  border: 1px solid #fca5a5;
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  font-size: 13px;
+  color: var(--red);
+}
+
+/* ── SHARE MODAL ── */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 200;
+  align-items: flex-end;
+  justify-content: center;
+}
+.modal-overlay.open { display: flex; }
+.modal-sheet {
+  background: white;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  padding: 24px 20px 32px;
+  width: 100%;
+  max-width: 640px;
+  animation: slideUp 0.2s ease;
+}
+@keyframes slideUp {
+  from { transform: translateY(60px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+.modal-title { font-size: 17px; font-weight: 700; margin-bottom: 16px; }
+.share-text-box {
+  background: var(--gray-50);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--gray-700);
+  white-space: pre-wrap;
+  max-height: 220px;
+  overflow-y: auto;
+  margin-bottom: 14px;
+  font-family: monospace;
+}
+.share-actions { display: flex; gap: 8px; }
+.refresh-status { font-size: 12px; color: var(--gray-600); margin-top: 8px; }
+
+/* ── EMPTY STATE ── */
+.empty-state {
+  text-align: center;
+  padding: 48px 20px;
+  color: var(--gray-400);
+}
+.empty-state .empty-icon { font-size: 40px; margin-bottom: 12px; }
+.empty-state p { font-size: 14px; }
+
+/* ── SECTION TITLE ── */
+.section-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--gray-600);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 10px;
+  margin-top: 20px;
+}
+.section-title:first-child { margin-top: 0; }
+</style>
 </head>
 <body>
 
+<div class="app-header">
+  <div class="app-logo">Spot<span>Price</span></div>
+  <div style="font-size:12px;color:#94a3b8;">Comparador de supermercados</div>
+</div>
+
 <div class="container">
-    <h1>SpotPrice Comparador</h1>
-    
-    <div class="search-box">
-        <input type="number" id="eanInput" placeholder="Escaneá o escribí el código EAN" inputmode="numeric">
-        <button class="btn-cam" id="btn-camara" onclick="toggleCamara()">📷 Cámara</button>
-        <button class="btn-search" onclick="buscarPrecios()">Buscar</button>
+
+  <!-- TAB NAV -->
+  <div class="tab-nav">
+    <button class="tab-btn active" onclick="showTab('buscar')">🔍 Buscar</button>
+    <button class="tab-btn" onclick="showTab('lista')">🛒 Lista</button>
+    <button class="tab-btn" onclick="showTab('perfiles')">👤 Perfiles</button>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       TAB: BUSCAR
+  ══════════════════════════════════════════ -->
+  <div id="tab-buscar">
+    <div class="search-row">
+      <input type="number" id="eanInput" placeholder="Código de barras EAN" inputmode="numeric">
+      <button class="btn btn-blue" id="btn-cam" onclick="toggleCamara()">📷</button>
+      <button class="btn btn-dark" onclick="buscarPrecios()">Buscar</button>
     </div>
 
-    <div id="reader-container">
-        <div id="reader" style="width: 100%;"></div>
+    <div id="reader-container"><div id="reader" style="width:100%"></div></div>
+    <div class="loader" id="loader"><span class="loader-dots">Buscando precios</span></div>
+
+    <div id="comparison-zone" style="display:none">
+      <div class="product-header">
+        <img id="prod-img" src="" alt="">
+        <div>
+          <div class="product-name" id="prod-title"></div>
+          <div class="product-brand" id="prod-brand"></div>
+        </div>
+      </div>
+
+      <div class="cards-grid">
+        <div class="price-card coto-top" id="card-coto">
+          <div class="market-name coto">Coto Digital</div>
+          <div class="badge-slot" id="coto-badge-slot"></div>
+          <div class="price-old" id="coto-old"></div>
+          <div class="price-main" id="coto-price">—</div>
+        </div>
+        <div class="price-card carrefour-top" id="card-carrefour">
+          <div class="market-name carrefour">Carrefour</div>
+          <div class="badge-slot" id="carrefour-badge-slot"></div>
+          <div class="price-old" id="carrefour-old"></div>
+          <div class="price-main" id="carrefour-price">—</div>
+        </div>
+        <div class="price-card dia-top" id="card-dia">
+          <div class="market-name dia">Día</div>
+          <div class="badge-slot" id="dia-badge-slot"></div>
+          <div class="price-old" id="dia-old"></div>
+          <div class="price-main" id="dia-price">—</div>
+        </div>
+        <div class="price-card masonline-top" id="card-masonline">
+          <div class="market-name masonline">ChangoMás</div>
+          <div class="badge-slot" id="masonline-badge-slot"></div>
+          <div class="price-old" id="masonline-old"></div>
+          <div class="price-main" id="masonline-price">—</div>
+        </div>
+      </div>
+
+      <div class="profile-selector-row">
+        <select id="add-to-profile-select"></select>
+      </div>
+      <button class="btn btn-green btn-add-list" onclick="agregarALista()">➕ Agregar el más barato a la lista</button>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       TAB: LISTA
+  ══════════════════════════════════════════ -->
+  <div id="tab-lista" style="display:none">
+    <div class="list-controls">
+      <select id="profile-list-select" onchange="renderLista()"></select>
+      <button class="btn btn-blue btn-sm" onclick="recalcularLista()">↺ Actualizar precios</button>
+      <button class="btn btn-ghost btn-sm" onclick="abrirCompartir()">⬆ Compartir</button>
+      <button class="btn btn-red btn-sm" onclick="vaciarLista()">🗑 Vaciar</button>
     </div>
 
-    <div id="loader">🔄 Buscando en las góndolas digitales...</div>
+    <div id="refresh-status" class="refresh-status" style="display:none"></div>
 
-    <div id="comparison-zone" style="display: none;">
-        <div class="product-header">
-            <img id="prod-img" src="" alt="Producto">
-            <div class="product-info">
-                <h3 id="prod-title">Nombre del Producto</h3>
-                <p id="prod-brand">Marca</p>
-            </div>
-        </div>
-
-        <div class="cards-grid">
-            <div class="card coto-border" id="card-coto">
-                <div class="market-title coto-color">Coto Digital</div>
-                <div class="badge-container" id="coto-badge-container"></div>
-                <div class="price-old" id="coto-old"></div>
-                <div class="price-main" id="coto-price">$0.00</div>
-            </div>
-
-            <div class="card carrefour-border" id="card-carrefour">
-                <div class="market-title carrefour-color">Carrefour</div>
-                <div class="badge-container" id="carrefour-badge-container"></div>
-                <div class="price-old" id="carrefour-old"></div>
-                <div class="price-main" id="carrefour-price">$0.00</div>
-            </div>
-            <div class="card dia-border" id="card-dia">
-                <div class="market-title dia-color">Dia</div>
-                <div class="badge-container" id="dia-badge-container"></div>
-                <div class="price-old" id="dia-old"></div>
-                <div class="price-main" id="dia-price">$0.00</div>
-            </div>
-            <div class="card masonline-border" id="card-masonline">
-                <div class="market-title masonline-color">ChangoMas</div>
-                <div class="badge-container" id="masonline-badge-container"></div>
-                <div class="price-old" id="masonline-old"></div>
-                <div class="price-main" id="masonline-price">$0.00</div>
-            </div>
-        </div>
-
-        <button class="btn-add" onclick="agregarALista()">➕ Agregar el más barato a mi lista</button>
+    <!-- Store comparison summary -->
+    <div id="store-compare-section" style="display:none">
+      <div class="section-title">Comparativa por supermercado</div>
+      <div class="store-compare" id="store-compare-table"></div>
+      <div id="missing-alert" style="display:none" class="missing-alert"></div>
     </div>
 
-    <div class="list-section">
-        <div class="list-header-box">
-            <h2>🛒 Mi Lista de Ahorro</h2>
-            <button class="btn-clear" onclick="vaciarLista()">Vaciar Lista</button>
-        </div>
-        <table>
-            <thead>
-                <tr>
-                    <th>Producto</th>
-                    <th>Sucursal</th>
-                    <th>Cantidad</th>
-                    <th>Precio</th>
-                    <th></th>
-                </tr>
-            </thead>
-            <tbody id="list-body"></tbody>
-        </table>
-        <div class="total-box">
-            Total Estimado: <span id="list-total">$0.00</span>
-        </div>
+    <div class="section-title">Productos</div>
+    <div id="list-body"></div>
+
+    <div id="total-bar-wrap" style="display:none">
+      <div class="total-bar">
+        <div class="total-bar-label">Total estimado (precio más bajo)</div>
+        <div class="total-bar-amount" id="list-total">$0</div>
+        <div class="total-bar-sub" id="list-items-count"></div>
+      </div>
     </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       TAB: PERFILES
+  ══════════════════════════════════════════ -->
+  <div id="tab-perfiles" style="display:none">
+    <div class="section-title">Tus listas de compras</div>
+    <div class="profiles-list" id="profiles-list"></div>
+
+    <div class="section-title">Nueva lista</div>
+    <div class="new-profile-row">
+      <input type="text" id="new-profile-name" placeholder="Nombre de la lista">
+      <button class="btn btn-green" onclick="crearPerfil()">Crear</button>
+    </div>
+    <div class="emoji-pick" id="emoji-pick"></div>
+  </div>
+
+</div>
+
+<!-- SHARE MODAL -->
+<div class="modal-overlay" id="share-modal">
+  <div class="modal-sheet">
+    <div class="modal-title">Compartir lista</div>
+    <div class="share-text-box" id="share-text"></div>
+    <div class="share-actions">
+      <button class="btn btn-dark" style="flex:1" onclick="copiarTexto()">📋 Copiar texto</button>
+      <button class="btn btn-blue" style="flex:1" onclick="compartirWhatsApp()">💬 WhatsApp</button>
+      <button class="btn btn-ghost" onclick="cerrarModal()">✕</button>
+    </div>
+  </div>
 </div>
 
 <script>
-    let html5QrcodeScanner = null;
-    let prodaGuardar = null; 
-    let listaCompras = JSON.parse(localStorage.getItem('lista_compras')) || [];
+// ═══════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════
+let html5QrcodeScanner = null;
+let prodaGuardar = null;
+let currentTab = 'buscar';
 
-    renderLista();
+const DEFAULT_PROFILES = [
+  { id: 'casa', name: 'Compras Casa', emoji: '🏠' },
+  { id: 'papa', name: 'Compras Papá', emoji: '👨' }
+];
 
-    function toggleCamara() {
-        const container = document.getElementById('reader-container');
-        const btn = document.getElementById('btn-camara');
-        if (html5QrcodeScanner) { detenerCamara(); return; }
+function loadProfiles() {
+  const raw = localStorage.getItem('sp_profiles');
+  if (!raw) {
+    localStorage.setItem('sp_profiles', JSON.stringify(DEFAULT_PROFILES));
+    return DEFAULT_PROFILES;
+  }
+  return JSON.parse(raw);
+}
+function saveProfiles(p) { localStorage.setItem('sp_profiles', JSON.stringify(p)); }
 
-        container.style.display = 'block';
-        btn.innerText = "❌ Cerrar";
-        btn.style.backgroundColor = "#718096";
+function loadLista(profileId) {
+  const raw = localStorage.getItem('sp_lista_' + profileId);
+  return raw ? JSON.parse(raw) : [];
+}
+function saveLista(profileId, lista) {
+  localStorage.setItem('sp_lista_' + profileId, JSON.stringify(lista));
+}
 
-        html5QrcodeScanner = new Html5Qrcode("reader");
-        const config = { fps: 10, qrbox: { width: 260, height: 160 } };
+function activeProfileId() {
+  return localStorage.getItem('sp_active_profile') || loadProfiles()[0]?.id || 'casa';
+}
+function setActiveProfile(id) { localStorage.setItem('sp_active_profile', id); }
 
-        html5QrcodeScanner.start({ facingMode: "environment" }, config, onScanSuccess, onScanFailure)
-        .catch(err => {
-            alert("No se pudo iniciar la cámara. Asegurate de estar usando localhost o HTTPS.");
-            detenerCamara();
-        });
+// ═══════════════════════════════════════════════════════
+//  TABS
+// ═══════════════════════════════════════════════════════
+function showTab(tab) {
+  currentTab = tab;
+  ['buscar','lista','perfiles'].forEach(t => {
+    document.getElementById('tab-' + t).style.display = t === tab ? 'block' : 'none';
+  });
+  document.querySelectorAll('.tab-btn').forEach((b, i) => {
+    b.classList.toggle('active', ['buscar','lista','perfiles'][i] === tab);
+  });
+  if (tab === 'lista') renderLista();
+  if (tab === 'perfiles') renderPerfiles();
+  if (tab === 'buscar') populateProfileSelect();
+}
+
+// ═══════════════════════════════════════════════════════
+//  CAMERA
+// ═══════════════════════════════════════════════════════
+function toggleCamara() {
+  const c = document.getElementById('reader-container');
+  const btn = document.getElementById('btn-cam');
+  if (html5QrcodeScanner) { detenerCamara(); return; }
+  c.style.display = 'block';
+  btn.textContent = '✕';
+  html5QrcodeScanner = new Html5Qrcode("reader");
+  html5QrcodeScanner.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 250, height: 150 } },
+    (text) => { detenerCamara(); document.getElementById('eanInput').value = text; buscarPrecios(); },
+    () => {}
+  ).catch(() => { alert("No se pudo iniciar la cámara. Usá HTTPS o localhost."); detenerCamara(); });
+}
+function detenerCamara() {
+  const c = document.getElementById('reader-container');
+  const btn = document.getElementById('btn-cam');
+  if (html5QrcodeScanner) {
+    html5QrcodeScanner.stop().then(() => {
+      html5QrcodeScanner = null;
+      c.style.display = 'none';
+      btn.textContent = '📷';
+    }).catch(() => {});
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  SEARCH
+// ═══════════════════════════════════════════════════════
+const PROXY = "https://corsproxy.io/?";
+const STORES = {
+  coto:      { id: 'coto',      name: 'Coto',       type: 'coto' },
+  carrefour: { id: 'carrefour', name: 'Carrefour',  type: 'vtex', base: 'https://www.carrefour.com.ar' },
+  dia:       { id: 'dia',       name: 'Día',        type: 'vtex', base: 'https://www.diaonline.supermercadosdia.com.ar' },
+  masonline: { id: 'masonline', name: 'ChangoMás',  type: 'vtex', base: 'https://www.masonline.com.ar' }
+};
+
+async function fetchCoto(ean) {
+  const url = `https://ac.cnstrc.com/autocomplete/${ean}?c=cio-ui-autocomplete-1.29.3&key=key_r6xzz4IAoTWcipni&num_results_Products=1`;
+  const r = await fetch(url).then(x => x.json());
+  const prod = r?.sections?.Products?.[0];
+  if (!prod) return null;
+  const d = prod.data;
+  let listP = d.product_list_price;
+  if (d.price && d.price.length > 0) listP = d.price[0].listPrice;
+  let precio = null; let oldP = null; let badge = null;
+  if (d.discounts && d.discounts.length > 0) {
+    const pr = d.discounts[0];
+    badge = pr.discountText || null;
+    oldP = listP;
+    precio = parseFloat(String(pr.discountPrice).replace(/[^0-9.-]+/g,""));
+  } else { precio = parseFloat(listP); }
+  return {
+    precio,
+    oldP: oldP ? parseFloat(oldP) : null,
+    badge,
+    titulo: d.sku_display_name || prod.value,
+    marca: d.product_brand || 'Genérico',
+    img: d.image_url || ''
+  };
+}
+
+async function fetchVtex(ean, base) {
+  const url = `${base}/api/io/_v/api/intelligent-search/product_search?query=${ean}`;
+  const r = await fetch(PROXY + encodeURIComponent(url)).then(x => x.json());
+  const prod = r?.products?.[0];
+  if (!prod) return null;
+  const offer = prod.items?.[0]?.sellers?.[0]?.commertialOffer;
+  if (!offer) return null;
+  let listP = offer.ListPrice;
+  let spotP = offer.Price;
+  let badge = null; let oldP = null;
+  if (listP > spotP) {
+    badge = Math.round(((listP - spotP) / listP) * 100) + '% DTO';
+    oldP = listP;
+  }
+  return {
+    precio: parseFloat(spotP),
+    oldP: oldP ? parseFloat(oldP) : null,
+    badge,
+    titulo: prod.productName || '',
+    marca: prod.brand || 'Genérico',
+    img: prod.items?.[0]?.images?.[0]?.imageUrl || ''
+  };
+}
+
+async function buscarPrecios(silencioso) {
+  const ean = document.getElementById('eanInput').value.trim();
+  if (!ean) { if (!silencioso) alert("Ingresá un código de barras."); return null; }
+
+  if (!silencioso) {
+    document.getElementById('comparison-zone').style.display = 'none';
+    document.getElementById('loader').style.display = 'block';
+    resetCards();
+  }
+
+  const results = {};
+  await Promise.all([
+    fetchCoto(ean).then(d => results.coto = d).catch(() => results.coto = null),
+    fetchVtex(ean, STORES.carrefour.base).then(d => results.carrefour = d).catch(() => results.carrefour = null),
+    fetchVtex(ean, STORES.dia.base).then(d => results.dia = d).catch(() => results.dia = null),
+    fetchVtex(ean, STORES.masonline.base).then(d => results.masonline = d).catch(() => results.masonline = null),
+  ]);
+
+  if (silencioso) return results;
+
+  document.getElementById('loader').style.display = 'none';
+
+  let titulo = 'Producto desconocido', marca = '', img = '';
+  ['coto','carrefour','dia','masonline'].forEach(k => {
+    if (results[k] && !titulo.trim()) {
+      titulo = results[k].titulo;
+      marca = results[k].marca;
+      img = results[k].img;
+    } else if (results[k] && titulo === 'Producto desconocido') {
+      titulo = results[k].titulo;
+      marca = results[k].marca;
+      img = results[k].img;
     }
+  });
+  if (!titulo || titulo === 'Producto desconocido') {
+    const found = ['coto','carrefour','dia','masonline'].find(k => results[k]);
+    if (found) { titulo = results[found].titulo; marca = results[found].marca; img = results[found].img; }
+  }
 
-    function detenerCamara() {
-        const container = document.getElementById('reader-container');
-        const btn = document.getElementById('btn-camara');
-        if (html5QrcodeScanner) {
-            html5QrcodeScanner.stop().then(() => {
-                html5QrcodeScanner = null;
-                container.style.display = 'none';
-                btn.innerText = "📷 Cámara";
-                btn.style.backgroundColor = "#3182ce";
-            }).catch(err => console.error(err));
-        }
+  document.getElementById('prod-title').textContent = titulo;
+  document.getElementById('prod-brand').textContent = marca;
+  document.getElementById('prod-img').src = img || 'https://via.placeholder.com/80';
+
+  const precios = {};
+  ['coto','carrefour','dia','masonline'].forEach(k => {
+    const d = results[k];
+    const cardEl = document.getElementById('card-' + k);
+    if (d && d.precio && !isNaN(d.precio)) {
+      precios[k] = d.precio;
+      document.getElementById(k + '-price').textContent = '$' + d.precio.toFixed(2);
+      if (d.oldP) document.getElementById(k + '-old').textContent = 'Antes: $' + d.oldP.toFixed(2);
+      if (d.badge) document.getElementById(k + '-badge-slot').innerHTML = `<span class="discount-badge">${d.badge}</span>`;
+    } else {
+      document.getElementById(k + '-price').innerHTML = '<span class="price-na">No encontrado</span>';
     }
+  });
 
-    function onScanSuccess(decodedText) {
-        detenerCamara();
-        document.getElementById('eanInput').value = decodedText;
-        buscarPrecios();
-    }
+  // Winner
+  const entries = Object.entries(precios);
+  if (entries.length > 0) {
+    const [winner] = entries.reduce((a, b) => a[1] <= b[1] ? a : b);
+    document.getElementById('card-' + winner).classList.add('winner');
+    prodaGuardar = {
+      ean,
+      titulo,
+      lugar: STORES[winner].name,
+      lugarId: winner,
+      precio: precios[winner],
+      allPrices: Object.fromEntries(Object.entries(precios)),
+      ts: Date.now()
+    };
+  }
 
-    function onScanFailure(error) {}
+  document.getElementById('comparison-zone').style.display = 'block';
+  populateProfileSelect();
+  return results;
+}
 
-    async function buscarPrecios() {
-        const ean = document.getElementById('eanInput').value.trim();
-        if (!ean) { alert("Por favor, ingresá un código de barras."); return; }
+function resetCards() {
+  ['coto','carrefour','dia','masonline'].forEach(k => {
+    document.getElementById('card-' + k).classList.remove('winner');
+    document.getElementById(k + '-badge-slot').innerHTML = '';
+    document.getElementById(k + '-old').textContent = '';
+    document.getElementById(k + '-price').textContent = '—';
+  });
+}
 
-        document.getElementById('comparison-zone').style.display = 'none';
-        document.getElementById('loader').style.display = 'block';
-        
-        document.getElementById('card-coto').classList.remove('winner');
-        document.getElementById('card-carrefour').classList.remove('winner');
-        document.getElementById('coto-badge-container').innerHTML = '';
-        document.getElementById('carrefour-badge-container').innerHTML = '';
-        document.getElementById('coto-old').innerText = '';
-        document.getElementById('carrefour-old').innerText = '';
-        document.getElementById('card-dia').classList.remove('winner');
-        document.getElementById('card-masonline').classList.remove('winner');
-        document.getElementById('dia-badge-container').innerHTML = '';
-        document.getElementById('masonline-badge-container').innerHTML = '';
-        document.getElementById('dia-old').innerText = '';
-        document.getElementById('masonline-old').innerText = '';
-        // Endpoints sin CORS
-        const urlCoto = `https://ac.cnstrc.com/autocomplete/${ean}?c=cio-ui-autocomplete-1.29.3&key=key_r6xzz4IAoTWcipni&num_results_Products=1`;
-        const proxyUrl = "https://corsproxy.io/?";
-        const urlCarrefour = `https://www.carrefour.com.ar/api/io/_v/api/intelligent-search/product_search?query=${ean}`;
-        const urlDia = `https://www.diaonline.supermercadosdia.com.ar/api/io/_v/api/intelligent-search/product_search?query=${ean}`;
-        const urlMasonline = `https://www.masonline.com.ar/api/io/_v/api/intelligent-search/product_search?query=${ean}`;
+// ═══════════════════════════════════════════════════════
+//  LIST MANAGEMENT
+// ═══════════════════════════════════════════════════════
+function populateProfileSelect() {
+  const profiles = loadProfiles();
+  const actId = activeProfileId();
+  ['add-to-profile-select','profile-list-select'].forEach(selId => {
+    const sel = document.getElementById(selId);
+    if (!sel) return;
+    sel.innerHTML = profiles.map(p =>
+      `<option value="${p.id}" ${p.id === actId ? 'selected' : ''}>${p.emoji} ${p.name}</option>`
+    ).join('');
+  });
+}
 
+function agregarALista() {
+  if (!prodaGuardar) return;
+  const profileId = document.getElementById('add-to-profile-select').value;
+  setActiveProfile(profileId);
+  let lista = loadLista(profileId);
+  const idx = lista.findIndex(i => i.ean === prodaGuardar.ean);
+  if (idx !== -1) {
+    lista[idx].cantidad += 1;
+    lista[idx].precio = prodaGuardar.precio;
+    lista[idx].lugar = prodaGuardar.lugar;
+    lista[idx].lugarId = prodaGuardar.lugarId;
+    lista[idx].allPrices = prodaGuardar.allPrices;
+    lista[idx].ts = Date.now();
+  } else {
+    lista.push({ ...prodaGuardar, cantidad: 1 });
+  }
+  saveLista(profileId, lista);
+  document.getElementById('comparison-zone').style.display = 'none';
+  showToast('Agregado a ' + loadProfiles().find(p => p.id === profileId)?.name);
+}
 
-        let datosCoto = null;
-        let datosCarrefour = null;
-        let datosDia = null;
-        let datosMasonline = null;
+function eliminarItem(profileId, idx) {
+  let lista = loadLista(profileId);
+  lista.splice(idx, 1);
+  saveLista(profileId, lista);
+  renderLista();
+}
 
-        await Promise.all([
-            fetch(urlCoto).then(r => r.json()).then(j => datosCoto = j).catch(e => console.log("Error Coto:", e)),
-            fetch(urlCarrefour).then(r => r.json()).then(j => datosCarrefour = j).catch(e => console.log("Error Carrefour:", e))
-        ]);
+function cambiarCantidad(profileId, idx, delta) {
+  let lista = loadLista(profileId);
+  lista[idx].cantidad = Math.max(1, (lista[idx].cantidad || 1) + delta);
+  saveLista(profileId, lista);
+  renderLista();
+}
 
-        document.getElementById('loader').style.display = 'none';
+function vaciarLista() {
+  const profileId = document.getElementById('profile-list-select').value;
+  if (!confirm('¿Vaciar esta lista?')) return;
+  saveLista(profileId, []);
+  renderLista();
+}
 
-        let finalTitle = "Producto Desconocido";
-        let finalBrand = "Genérico";
-        let finalImg = "https://via.placeholder.com/120";
+// ═══════════════════════════════════════════════════════
+//  RECALCULATE
+// ═══════════════════════════════════════════════════════
+async function recalcularLista() {
+  const profileId = document.getElementById('profile-list-select').value;
+  let lista = loadLista(profileId);
+  if (!lista.length) return;
+  const statusEl = document.getElementById('refresh-status');
+  statusEl.style.display = 'block';
+  statusEl.textContent = 'Actualizando precios...';
 
-        let precioCotoFinal = null;
-        let precioCarrefourFinal = null;
-        let precioDiaFinal = null;
-        let precioMasonlineFinal = null;
+  let ok = 0; let err = 0;
+  for (let i = 0; i < lista.length; i++) {
+    statusEl.textContent = `Actualizando ${i+1}/${lista.length}...`;
+    try {
+      const [coto, carrefour, dia, masonline] = await Promise.all([
+        fetchCoto(lista[i].ean).catch(() => null),
+        fetchVtex(lista[i].ean, STORES.carrefour.base).catch(() => null),
+        fetchVtex(lista[i].ean, STORES.dia.base).catch(() => null),
+        fetchVtex(lista[i].ean, STORES.masonline.base).catch(() => null),
+      ]);
+      const precios = {};
+      if (coto?.precio) precios.coto = coto.precio;
+      if (carrefour?.precio) precios.carrefour = carrefour.precio;
+      if (dia?.precio) precios.dia = dia.precio;
+      if (masonline?.precio) precios.masonline = masonline.precio;
 
-        // 1. Procesar Coto
-        const prodCoto = datosCoto?.sections?.Products?.[0];
-        if (prodCoto) {
-            const data = prodCoto.data;
-            finalTitle = data.sku_display_name || prodCoto.value;
-            finalBrand = data.product_brand || "Genérico";
-            finalImg = data.image_url || finalImg;
+      if (Object.keys(precios).length > 0) {
+        const [winner] = Object.entries(precios).reduce((a, b) => a[1] <= b[1] ? a : b);
+        lista[i].allPrices = precios;
+        lista[i].precio = precios[winner];
+        lista[i].lugar = STORES[winner].name;
+        lista[i].lugarId = winner;
+        lista[i].ts = Date.now();
+        ok++;
+      } else { err++; }
+    } catch(e) { err++; }
+  }
+  saveLista(profileId, lista);
+  const now = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+  statusEl.textContent = `Actualizado a las ${now} · ${ok} productos OK${err ? ` · ${err} sin precio` : ''}`;
+  renderLista();
+}
 
-            let precioLista = data.product_list_price;
-            if (data.price && data.price.length > 0) precioLista = data.price[0].listPrice;
+// ═══════════════════════════════════════════════════════
+//  RENDER LISTA
+// ═══════════════════════════════════════════════════════
+function storeBadgeClass(lugarId) {
+  const map = { coto: 'badge-coto', carrefour: 'badge-carrefour', dia: 'badge-dia', masonline: 'badge-masonline' };
+  return map[lugarId] || 'badge-unknown';
+}
 
-            if (data.discounts && data.discounts.length > 0) {
-                const promo = data.discounts[0];
-                if (promo.discountText) {
-                    document.getElementById('coto-badge-container').innerHTML = `<span class="discount-badge">${promo.discountText}</span>`;
-                }
-                document.getElementById('coto-old').innerText = `Antes: $${precioLista}`;
-                precioCotoFinal = parseFloat(String(promo.discountPrice).replace(/[^0-9.-]+/g,""));
-            } else {
-                precioCotoFinal = parseFloat(precioLista);
-            }
-            document.getElementById('coto-price').innerText = `$${precioCotoFinal.toFixed(2)}`;
-        } else {
-            document.getElementById('coto-price').innerHTML = `<span class="error-local">No encontrado</span>`;
-        }
+function renderLista() {
+  populateProfileSelect();
+  const profileId = document.getElementById('profile-list-select')?.value || activeProfileId();
+  const lista = loadLista(profileId);
+  const bodyEl = document.getElementById('list-body');
+  const totalBarWrap = document.getElementById('total-bar-wrap');
+  const compareSection = document.getElementById('store-compare-section');
 
-        // 2. Procesar Carrefour
-        // Se usa la variable proxyUrl definida anteriormente
-        const respCarrefour = await fetch(proxyUrl + encodeURIComponent(urlCarrefour));
-        const jsonCarrefour = await respCarrefour.json();
-        const prodCarrefour = jsonCarrefour.products?.[0]; // Acceso seguro
+  bodyEl.innerHTML = '';
 
-        if (prodCarrefour) {
-            if (finalTitle === "Producto Desconocido") {
-                finalTitle = prodCarrefour.productName;
-                finalBrand = prodCarrefour.brand || "Genérico";
-                // Corrección de acceso a la imagen
-                finalImg = prodCarrefour.items?.[0]?.images?.[0]?.imageUrl || finalImg;
-            }
+  if (!lista.length) {
+    bodyEl.innerHTML = `<div class="empty-state"><div class="empty-icon">🛒</div><p>Buscá un producto y agregalo a esta lista.</p></div>`;
+    totalBarWrap.style.display = 'none';
+    compareSection.style.display = 'none';
+    return;
+  }
 
-            // Acceso a la estructura de precios de VTEX
-            const offer = prodCarrefour.items?.[0]?.sellers?.[0]?.commertialOffer;
-            
-            if (offer) {
-                let precioLista = offer.ListPrice;
-                let precioSpot = offer.Price; // Este es el precio final con descuento
+  let total = 0;
+  // Per-store totals
+  const storeTotals = { coto: 0, carrefour: 0, dia: 0, masonline: 0 };
+  const storeMissing = { coto: 0, carrefour: 0, dia: 0, masonline: 0 };
+  const storeFound = { coto: 0, carrefour: 0, dia: 0, masonline: 0 };
 
-                if (precioLista > precioSpot) {
-                    let dtoPorcentaje = Math.round(((precioLista - precioSpot) / precioLista) * 100);
-                    document.getElementById('carrefour-badge-container').innerHTML = `<span class="discount-badge">${dtoPorcentaje}% DTO</span>`;
-                    document.getElementById('carrefour-old').innerText = `Antes: $${precioLista}`;
-                }
-                
-                precioCarrefourFinal = parseFloat(precioSpot);
-                document.getElementById('carrefour-price').innerText = `$${precioCarrefourFinal.toFixed(2)}`;
-            } else {
-                document.getElementById('carrefour-price').innerHTML = `<span class="error-local">Sin stock</span>`;
-            }
-        } else {
-            document.getElementById('carrefour-price').innerHTML = `<span class="error-local">No encontrado</span>`;
-        }
+  lista.forEach((item, idx) => {
+    const subtotal = (item.precio || 0) * (item.cantidad || 1);
+    total += subtotal;
+    const stale = item.ts && (Date.now() - item.ts) > 24 * 3600 * 1000;
+    const missing = !item.precio;
+    const cls = missing ? 'not-found-warning' : stale ? 'stale-warning' : '';
+    const badgeClass = storeBadgeClass(item.lugarId);
 
-        if (!prodCoto && !prodCarrefour) {
-            alert("No se encontró el producto en ninguna de las dos tiendas.");
-            return;
-        }
+    // Per-store: if we have allPrices, use them; else use winner price for that store
+    const ap = item.allPrices || {};
+    Object.keys(storeTotals).forEach(s => {
+      if (ap[s] !== undefined) {
+        storeTotals[s] += ap[s] * (item.cantidad || 1);
+        storeFound[s]++;
+      } else {
+        storeMissing[s]++;
+        // Use winner price as fallback for missing
+        if (item.precio) storeTotals[s] += item.precio * (item.cantidad || 1);
+      }
+    });
 
-        document.getElementById('prod-title').innerText = finalTitle;
-        document.getElementById('prod-brand').innerText = finalBrand;
-        document.getElementById('prod-img').src = finalImg;
+    const ts = item.ts ? new Date(item.ts).toLocaleString('es-AR', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' }) : '—';
+    bodyEl.innerHTML += `
+    <div class="list-item ${cls}">
+      <div style="flex:1;min-width:0">
+        <div class="item-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${item.titulo}</div>
+        <div class="item-meta">EAN: ${item.ean} · ${ts}</div>
+        ${stale ? '<div class="item-meta" style="color:var(--amber)">⚠ Precio desactualizado</div>' : ''}
+        ${missing ? '<div class="item-meta" style="color:var(--red)">✕ Sin precio disponible</div>' : ''}
+      </div>
+      <span class="item-store-badge ${badgeClass}">${item.lugar || '?'}</span>
+      <div class="qty-ctrl">
+        <button class="qty-btn" onclick="cambiarCantidad('${profileId}',${idx},-1)">−</button>
+        <span class="qty-num">${item.cantidad || 1}</span>
+        <button class="qty-btn" onclick="cambiarCantidad('${profileId}',${idx},1)">+</button>
+      </div>
+      <div class="item-price">$${subtotal.toFixed(2)}</div>
+      <button class="btn-del" onclick="eliminarItem('${profileId}',${idx})">🗑</button>
+    </div>`;
+  });
 
-        let mejorLugar = "";
-        let mejorPrecio = 0;
+  totalBarWrap.style.display = 'block';
+  document.getElementById('list-total').textContent = '$' + total.toFixed(2);
+  document.getElementById('list-items-count').textContent = lista.length + ' productos · ' + lista.reduce((a,i) => a + (i.cantidad||1), 0) + ' unidades';
 
-        if (precioCotoFinal && precioCarrefourFinal) {
-            if (precioCotoFinal <= precioCarrefourFinal) {
-                document.getElementById('card-coto').classList.add('winner');
-                mejorLugar = "Coto";
-                mejorPrecio = precioCotoFinal;
-            } else {
-                document.getElementById('card-carrefour').classList.add('winner');
-                mejorLugar = "Carrefour";
-                mejorPrecio = precioCarrefourFinal;
-            }
-        } else if (precioCotoFinal) {
-            document.getElementById('card-coto').classList.add('winner');
-            mejorLugar = "Coto";
-            mejorPrecio = precioCotoFinal;
-        } else if (precioCarrefourFinal) {
-            document.getElementById('card-carrefour').classList.add('winner');
-            mejorLugar = "Carrefour";
-            mejorPrecio = precioCarrefourFinal;
-        }
+  // Store comparison
+  compareSection.style.display = 'block';
+  renderStoreCompare(storeTotals, storeMissing, storeFound, lista.length);
+}
 
-        prodaGuardar = {
-            ean: document.getElementById('eanInput').value.trim(), // Importante
-            titulo: finalTitle,
-            lugar: mejorLugar,
-            precio: mejorPrecio
-        };
+function renderStoreCompare(totals, missing, found, total) {
+  const tableEl = document.getElementById('store-compare-table');
+  const missingEl = document.getElementById('missing-alert');
 
-        document.getElementById('comparison-zone').style.display = 'block';
-    }
+  const entries = Object.entries(totals)
+    .map(([k,v]) => ({ k, v, name: STORES[k].name, missing: missing[k], found: found[k] }))
+    .sort((a,b) => a.v - b.v);
 
-    function agregarALista() {
-        if (!prodaGuardar) return;
-        
-        // Asumimos que el EAN está en el input al momento de guardar
-        const eanActual = document.getElementById('eanInput').value.trim();
-        
-        // Buscamos si ya existe
-        const index = listaCompras.findIndex(item => item.ean === eanActual);
+  const maxVal = Math.max(...entries.map(e => e.v));
+  const colors = { coto: '#c0392b', carrefour: '#1a56a0', dia: '#c0235b', masonline: '#2d2440' };
 
-        if (index !== -1) {
-            // Si existe, aumentamos cantidad
-            listaCompras[index].cantidad += 1;
-        } else {
-            // Si no, agregamos nuevo con cantidad 1
-            listaCompras.push({
-                ...prodaGuardar,
-                ean: eanActual,
-                cantidad: 1
-            });
-        }
+  let winnerSet = false;
+  let html = `<div class="store-compare-header">¿Dónde conviene hacer toda la compra?</div>`;
+  entries.forEach((e, i) => {
+    const pct = maxVal > 0 ? Math.round((e.v / maxVal) * 100) : 0;
+    const isWinner = i === 0 && !winnerSet;
+    if (isWinner) winnerSet = true;
+    html += `
+    <div class="store-compare-row ${isWinner ? 'winner-row' : ''}">
+      <div class="store-dot" style="background:${colors[e.k]}"></div>
+      <div style="flex:1">
+        <div class="store-compare-name">${e.name} ${isWinner ? '<span class="winner-crown">🏆</span>' : ''}</div>
+        <div class="store-compare-items">${e.found} de ${total} productos encontrados</div>
+        ${e.missing > 0 ? `<div class="store-compare-missing">⚠ ${e.missing} productos no encontrados (precio estimado del más barato)</div>` : ''}
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="store-bar-wrap" style="width:60px">
+          <div class="store-bar" style="width:${pct}%;background:${colors[e.k]}"></div>
+        </div>
+        <div class="store-compare-total">$${e.v.toFixed(2)}</div>
+      </div>
+    </div>`;
+  });
+  tableEl.innerHTML = html;
 
-        localStorage.setItem('lista_compras', JSON.stringify(listaCompras));
-        renderLista();
-        document.getElementById('comparison-zone').style.display = 'none';
-    }
+  const hasMissing = entries.some(e => e.missing > 0);
+  missingEl.style.display = hasMissing ? 'block' : 'none';
+  if (hasMissing) {
+    missingEl.textContent = '⚠ Algunos productos no están disponibles en todos los supermercados. Para esos, se usa el precio más barato encontrado como estimación.';
+  }
+}
 
-    function eliminarDeLista(index) {
-        listaCompras.splice(index, 1);
-        localStorage.setItem('lista_compras', JSON.stringify(listaCompras));
-        renderLista();
-    }
+// ═══════════════════════════════════════════════════════
+//  PROFILES
+// ═══════════════════════════════════════════════════════
+const EMOJIS = ['🏠','👨','👩','🧒','🐶','🌿','💊','🎓','🎉','🧹'];
+let selectedEmoji = '🏠';
 
-    function vaciarLista() {
-        if (listaCompras.length === 0) return;
-        if (confirm("¿Querés vaciar todos los elementos de la lista actual?")) {
-            listaCompras = [];
-            localStorage.removeItem('lista_compras');
-            renderLista();
-        }
-    }
+function renderPerfiles() {
+  const profiles = loadProfiles();
+  const actId = activeProfileId();
+  const listEl = document.getElementById('profiles-list');
+  listEl.innerHTML = profiles.map((p, i) => {
+    const lista = loadLista(p.id);
+    const isActive = p.id === actId;
+    return `
+    <div class="profile-item ${isActive ? 'active-profile' : ''}">
+      <div style="font-size:28px">${p.emoji}</div>
+      <div class="profile-info">
+        <div class="profile-title">${p.name} ${isActive ? '<span style="font-size:11px;color:#3b82f6;font-weight:600">· activa</span>' : ''}</div>
+        <div class="profile-count">${lista.length} productos</div>
+      </div>
+      <div class="profile-actions">
+        <button class="btn btn-blue btn-sm" onclick="activarPerfil('${p.id}')">Usar</button>
+        ${profiles.length > 1 ? `<button class="btn btn-red btn-sm" onclick="eliminarPerfil('${p.id}')">✕</button>` : ''}
+      </div>
+    </div>`;
+  }).join('');
 
-    function renderLista() {
-        const tbody = document.getElementById('list-body');
-        tbody.innerHTML = '';
-        let total = 0;
+  // Emoji picker
+  const emojiPick = document.getElementById('emoji-pick');
+  emojiPick.innerHTML = EMOJIS.map(e =>
+    `<span class="emoji-opt ${e === selectedEmoji ? 'sel' : ''}" onclick="selectEmoji('${e}')">${e}</span>`
+  ).join('');
+}
 
-        listaCompras.forEach((item, index) => {
-            total += (item.precio * item.cantidad);
-            const claseColor = item.lugar === "Coto" ? "coto-color" : "carrefour-color";
-            
-            tbody.innerHTML += `
-            <tr>
-                <td style="padding: 12px;">
-                    <div style="font-size: 14px; font-weight: 600;">${item.titulo}</div>
-                    <div style="font-size: 11px; color: #a0aec0;">EAN: ${item.ean}</div>
-                </td>
-                <td style="text-align: center;">
-                    <span class="${claseColor}" style="padding: 4px 8px; border-radius: 4px; font-size: 12px; background: #f7fafc;">
-                        ${item.lugar}
-                    </span>
-                </td>
-                <td>
-                    <div class="table-qty">
-                        <button class="btn-qty" onclick="cambiarCantidad(${index}, -1)">-</button>
-                        <span style="min-width: 20px; text-align: center; font-weight: bold;">${item.cantidad}</span>
-                        <button class="btn-qty" onclick="cambiarCantidad(${index}, 1)">+</button>
-                    </div>
-                </td>
-                <td class="td-price">$${(item.precio * item.cantidad).toFixed(2)}</td>
-                <td class="td-actions">
-                    <button class="btn-del" onclick="eliminarDeLista(${index})" title="Eliminar">🗑️</button>
-                </td>
-            </tr>
-        `;
-        });
+function selectEmoji(e) {
+  selectedEmoji = e;
+  document.querySelectorAll('.emoji-opt').forEach(el => el.classList.toggle('sel', el.textContent === e));
+}
 
-        document.getElementById('list-total').innerText = `$${total.toFixed(2)}`;
-    }
+function activarPerfil(id) {
+  setActiveProfile(id);
+  populateProfileSelect();
+  renderPerfiles();
+  showToast('Lista activa cambiada');
+}
 
-    function cambiarCantidad(index, delta) {
-        listaCompras[index].cantidad += delta;
-        if (listaCompras[index].cantidad <= 0) {
-            listaCompras.splice(index, 1);
-        }
-        localStorage.setItem('lista_compras', JSON.stringify(listaCompras));
-        renderLista();
-    }
+function crearPerfil() {
+  const name = document.getElementById('new-profile-name').value.trim();
+  if (!name) { alert('Ingresá un nombre.'); return; }
+  const profiles = loadProfiles();
+  const id = 'p_' + Date.now();
+  profiles.push({ id, name, emoji: selectedEmoji });
+  saveProfiles(profiles);
+  document.getElementById('new-profile-name').value = '';
+  setActiveProfile(id);
+  populateProfileSelect();
+  renderPerfiles();
+  showToast('Lista "' + name + '" creada');
+}
+
+function eliminarPerfil(id) {
+  if (!confirm('¿Eliminar esta lista y sus productos?')) return;
+  const profiles = loadProfiles().filter(p => p.id !== id);
+  saveProfiles(profiles);
+  localStorage.removeItem('sp_lista_' + id);
+  if (activeProfileId() === id) setActiveProfile(profiles[0]?.id || '');
+  populateProfileSelect();
+  renderPerfiles();
+}
+
+// ═══════════════════════════════════════════════════════
+//  SHARE
+// ═══════════════════════════════════════════════════════
+function abrirCompartir() {
+  const profileId = document.getElementById('profile-list-select').value;
+  const profile = loadProfiles().find(p => p.id === profileId);
+  const lista = loadLista(profileId);
+  if (!lista.length) { alert('La lista está vacía.'); return; }
+
+  let total = 0;
+  let lines = [`${profile?.emoji || '🛒'} ${profile?.name || 'Lista'}\n`];
+  lines.push('Producto | Supermercado | Cant. | Precio');
+  lines.push('─'.repeat(42));
+  lista.forEach(item => {
+    const sub = (item.precio || 0) * (item.cantidad || 1);
+    total += sub;
+    lines.push(`• ${item.titulo}\n  ${item.lugar} × ${item.cantidad} = $${sub.toFixed(2)}`);
+  });
+  lines.push('─'.repeat(42));
+  lines.push(`TOTAL ESTIMADO: $${total.toFixed(2)}`);
+  lines.push(`\nGenerado con SpotPrice · ${new Date().toLocaleDateString('es-AR')}`);
+
+  document.getElementById('share-text').textContent = lines.join('\n');
+  document.getElementById('share-modal').classList.add('open');
+}
+
+function cerrarModal() {
+  document.getElementById('share-modal').classList.remove('open');
+}
+
+function copiarTexto() {
+  const text = document.getElementById('share-text').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    showToast('Copiado al portapapeles');
+    cerrarModal();
+  }).catch(() => {
+    const el = document.getElementById('share-text');
+    const range = document.createRange(); range.selectNodeContents(el);
+    const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
+    document.execCommand('copy');
+    showToast('Copiado');
+    cerrarModal();
+  });
+}
+
+function compartirWhatsApp() {
+  const text = document.getElementById('share-text').textContent;
+  window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
+}
+
+// Close modal on overlay click
+document.getElementById('share-modal').addEventListener('click', function(e) {
+  if (e.target === this) cerrarModal();
+});
+
+// ═══════════════════════════════════════════════════════
+//  TOAST
+// ═══════════════════════════════════════════════════════
+function showToast(msg) {
+  const t = document.createElement('div');
+  t.textContent = msg;
+  t.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1e293b;color:white;padding:10px 20px;border-radius:50px;font-size:13px;font-weight:600;z-index:300;white-space:nowrap;';
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2200);
+}
+
+// ═══════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════
+(function init() {
+  // Ensure default profiles exist
+  loadProfiles();
+  populateProfileSelect();
+  renderPerfiles();
+  // Enter on input
+  document.getElementById('eanInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') buscarPrecios();
+  });
+})();
 </script>
-
 </body>
 </html>
