@@ -579,6 +579,29 @@ function resetCards() {
     document.getElementById(k+'-price').textContent='—';
   }
 }
+// ═══════════════════════════════════
+//  RECETAS
+// ═══════════════════════════════════
+function verificarRecetas() {
+  const listaEans = loadLista(activeProfileId()).map(i => i.ean);
+  let sugerencias = RECETAS.map(receta => {
+    const faltantes = receta.eans.filter(ean => !listaEans.includes(ean));
+    return { ...receta, faltantes };
+  });
+
+  let html = `<div class="section-title">Sugerencia de Recetas</div>`;
+  sugerencias.forEach(r => {
+    const puedeCocinar = r.faltantes.length === 0;
+    html += `
+      <div style="background: white; padding: 10px; margin-bottom: 5px; border-radius: var(--rmd); border: 1px solid ${puedeCocinar ? 'var(--green)' : 'var(--amber)'}">
+        <strong>${r.nombre}</strong> ${puedeCocinar ? '✅' : '❌'}
+        ${!puedeCocinar ? `<div style="font-size:11px; color:var(--red)">Faltan: ${r.faltantes.length} productos</div>` : ''}
+      </div>`;
+  });
+  
+  // Puedes inyectar esto antes del list-body
+  document.getElementById('list-body').insertAdjacentHTML('afterbegin', html);
+}
 
 // ═══════════════════════════════════
 //  LIST
@@ -675,9 +698,9 @@ function renderLista() {
   bodyEl.innerHTML = '';
 
   // 1. Inyectar botón de recetas antes de la lista
-  bodyEl.innerHTML += `<div style="margin-bottom: 15px;">
+  /*bodyEl.innerHTML += `<div style="margin-bottom: 15px;">
     <button class="btn btn-dark" style="width:100%" onclick="verificarRecetas()">🍳 Ver recetas posibles</button>
-  </div>`;
+  </div>`;*/
 
   if (!lista.length) {
     bodyEl.innerHTML += '<div class="empty-state"><div class="empty-icon">🛒</div><p>Buscá un producto y agregalo.</p></div>';
