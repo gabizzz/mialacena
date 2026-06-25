@@ -62,6 +62,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;b
 
 /* PRICE CARDS */
 .cards-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
+.market-name {
+    font-weight: bold;
+}
 .price-card{background:white;border:1.5px solid var(--g200);border-radius:var(--rlg);padding:12px 10px;text-align:center;position:relative;transition:border-color .2s;}
 .price-card.coto-top{border-top:5px solid var(--coto);}
 .price-card.carrefour-top{border-top:5px solid var(--carrefour);}
@@ -410,8 +413,14 @@ function updateCartHeader() {
   const lista = loadLista(profileId);
   const total = lista.reduce((s,i) => s + (i.precio||0)*(i.cantidad||1), 0);
   const units = lista.reduce((s,i) => s + (i.cantidad||1), 0);
+
+  const precioHeaderFormateado = new Intl.NumberFormat('es-AR', {
+      style: 'currency',
+      currency: 'ARS',
+    }).format(total);
+
   document.getElementById('cart-badge').textContent = units;
-  document.getElementById('cart-total-header').textContent = '$' + total.toFixed(0);
+  document.getElementById('cart-total-header').textContent = precioHeaderFormateado;
 }
 
 // ═══════════════════════════════════
@@ -658,12 +667,16 @@ function renderLista() {
         // Do NOT add to total if missing — we'll mark incomplete
       }
     }
+    const precioFormateado = new Intl.NumberFormat('es-AR', {
+      style: 'currency',
+      currency: 'ARS',
+    }).format(sub);
 
     const ts=item.ts?new Date(item.ts).toLocaleString('es-AR',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):'—';
     bodyEl.innerHTML+=`
     <div class="list-item ${cls}">
       <div style="flex:1;min-width:0">
-      <div class="item-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${item.lugar}</div>
+      <div class="item-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><strong>${item.lugar}</strong></div>
         <div class="item-name">${item.titulo}</div>
         <div class="item-meta">EAN ${item.ean} · ${ts}</div>
         ${stale?'<div class="item-meta" style="color:var(--amber)">⚠ Precio desactualizado</div>':''}
@@ -674,13 +687,18 @@ function renderLista() {
         <span class="qty-num">${item.cantidad||1}</span>
         <button class="qty-btn" onclick="cambiarCantidad('${pid}',${idx},1)">+</button>
       </div>
-      <div class="item-price">$${sub.toFixed(2)}</div>
+      <div class="item-price">${precioFormateado}</div>
       <button class="btn-del" onclick="eliminarItem('${pid}',${idx})">🗑</button>
     </div>`;
   });
 
+  const precioTotalFormateado = new Intl.NumberFormat('es-AR', {
+      style: 'currency',
+      currency: 'ARS',
+    }).format(total);
+
   document.getElementById('total-bar-wrap').style.display='block';
-  document.getElementById('list-total').textContent='$'+total.toFixed(2);
+  document.getElementById('list-total').textContent=precioTotalFormateado;
   document.getElementById('list-items-count').textContent=lista.length+' productos · '+lista.reduce((a,i)=>a+(i.cantidad||1),0)+' unidades';
 
   document.getElementById('store-compare-section').style.display='block';
@@ -709,6 +727,12 @@ function renderStoreCompare(totals,missing,found,totalProds) {
     const isWinner=e.k===winner?.k&&e.found>0;
     const incomplete=e.missing>0;
     const pct=e.v>0?Math.round((e.v/maxVal)*100):0;
+
+    const precioCompFormateado = new Intl.NumberFormat('es-AR', {
+      style: 'currency',
+      currency: 'ARS',
+    }).format(e.v);
+
     html+=`
     <div class="store-compare-row ${isWinner ? 'winner-row' : ''} ${incomplete ? 'incomplete' : ''}">
       <div class="sc-logo">
@@ -722,7 +746,7 @@ function renderStoreCompare(totals,missing,found,totalProds) {
       ${e.found > 0 ? `
       <div style="display:flex;align-items:center;gap:8px">
         <div class="sc-bar-wrap"><div class="sc-bar" style="width:${pct}%;background:${e.color}"></div></div>
-        <div class="sc-total" style="color:${isWinner ? 'var(--green)' : 'var(--g800)'}">$${e.v.toFixed(2)}</div>
+        <div class="sc-total" style="color:${isWinner ? 'var(--green)' : 'var(--g800)'}">${precioCompFormateado}</div>
       </div>` : `<div class="sc-total" style="color:var(--g400)">—</div>`}
     </div>`;
   });
@@ -743,11 +767,16 @@ function renderPerfiles() {
   const profiles=loadProfiles(); const actId=activeProfileId();
   document.getElementById('profiles-list').innerHTML=profiles.map(p=>{
     const lista=loadLista(p.id); const isAct=p.id===actId;
+    const precioPerfilFormateado = new Intl.NumberFormat('es-AR', {
+      style: 'currency',
+      currency: 'ARS',
+    }).format(lista.reduce((s,i)=>s+(i.precio||0)*(i.cantidad||1),0));
+
     return `<div class="profile-item ${isAct?'active-profile':''}">
       <div style="font-size:28px">${p.emoji}</div>
       <div class="profile-info">
         <div class="profile-title">${p.name}${isAct?' <span style="font-size:11px;color:#3b82f6;font-weight:600">· activa</span>':''}</div>
-        <div class="profile-count">${lista.length} productos · $${lista.reduce((s,i)=>s+(i.precio||0)*(i.cantidad||1),0).toFixed(0)}</div>
+        <div class="profile-count">${lista.length+' productos · '+lista.reduce((a,i)=>a+(i.cantidad||1),0)+' unidades'} · ${precioPerfilFormateado}</div>
       </div>
       <div class="profile-actions">
         <button class="btn btn-blue btn-sm" onclick="activarPerfil('${p.id}')">Usar</button>
