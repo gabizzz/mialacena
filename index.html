@@ -485,53 +485,88 @@ async function fetchVtex(ean, base) {
 // ═══════════════════════════════════
 //  SEARCH
 // ═══════════════════════════════════
+// ═══════════════════════════════════
+//  BUSCAR PRECIOS COMPLETO
+// ═══════════════════════════════════
 async function buscarPrecios(silencioso) {
   const ean = document.getElementById('eanInput').value.trim();
   if (!ean) { if(!silencioso) alert("Ingresá un código de barras."); return null; }
-  if (!silencioso) {
-    document.getElementById('comparison-zone').style.display='none';
-    document.getElementById('loader').style.display='block';
-    resetCards();
-    addQty=1; document.getElementById('add-qty-display').textContent='1';
-  }
-  const results={};
-  await Promise.all([
-    fetchCoto(ean).then(d=>results.coto=d).catch(()=>results.coto=null),
-    fetchVtex(ean,STORES.carrefour.base).then(d=>results.carrefour=d).catch(()=>results.carrefour=null),
-    fetchVtex(ean,STORES.dia.base).then(d=>results.dia=d).catch(()=>results.dia=null),
-    fetchVtex(ean,STORES.masonline.base).then(d=>results.masonline=d).catch(()=>results.masonline=null),
-  ]);
-  if (silencioso) return results;
-  document.getElementById('loader').style.display='none';
 
-  let titulo='Producto desconocido',marca='',img='';
-  for (const k of ['coto','carrefour','dia','masonline']) {
-    if (results[k]) { titulo=results[k].titulo||titulo; marca=results[k].marca; img=results[k].img; break; }
+  // 1. Reset visual y preparación
+  if (!silencioso) {
+    document.getElementById('comparison-zone').style.display = 'none';
+    document.getElementById('loader').style.display = 'block';
+    resetCards();
+    addQty = 1;
+    document.getElementById('add-qty-display').textContent = '1';
+    
+    // Eliminar aviso de "ya está en el changuito" si existía
+    const existingBadge = document.getElementById('aviso-changuito');
+    if (existingBadge) existingBadge.remove();
   }
+
+  // 2. Fetch de datos
+  const results = {};
+  await Promise.all([
+    fetchCoto(ean).then(d => results.coto = d).catch(() => results.coto = null),
+    fetchVtex(ean, STORES.carrefour.base).then(d => results.carrefour = d).catch(() => results.carrefour = null),
+    fetchVtex(ean, STORES.dia.base).then(d => results.dia = d).catch(() => results.dia = null),
+    fetchVtex(ean, STORES.masonline.base).then(d => results.masonline = d).catch(() => results.masonline = null),
+  ]);
+
+  if (silencioso) return results;
+  document.getElementById('loader').style.display = 'none';
+
+  // 3. Obtener info básica del producto
+  let titulo = 'Producto desconocido', marca = '', img = '';
+  for (const k of ['coto', 'carrefour', 'dia', 'masonline']) {
+    if (results[k]) { titulo = results[k].titulo || titulo; marca = results[k].marca; img = results[k].img; break; }
+  }
+  
   document.getElementById('prod-title').textContent = titulo;
   document.getElementById('prod-brand').textContent = marca;
-  document.getElementById('prod-img').src = img||'https://via.placeholder.com/72';
+  document.getElementById('prod-img').src = img || 'https://via.placeholder.com/72';
 
-  const precios={};
-  for (const k of ['coto','carrefour','dia','masonline']) {
-    const d=results[k];
-    if (d?.precio && !isNaN(d.precio)) {
-      precios[k]=d.precio;
-      document.getElementById(k+'-price').textContent='$'+d.precio.toFixed(2);
-      if (d.oldP) document.getElementById(k+'-old').textContent='Antes: $'+d.oldP.toFixed(2);
-      if (d.badge) document.getElementById(k+'-badge-slot').innerHTML=`<span class="discount-badge">${d.badge}</span>`;
+  // 4. Renderizar tarjetas de precios (Precio 0 si no hay stock)
+  const precios = {};
+  for (const k of ['coto', 'carrefour', 'dia', 'masonline']) {
+    const d = results[k];
+    const precioVal = (d?.precio && !isNaN(d.precio)) ? d.precio : 0;
+    precios[k] = precioVal;
+
+    if (precioVal > 0) {
+      document.getElementById(k + '-price').textContent = '$' + precioVal.toFixed(2);
+      if (d.oldP) document.getElementById(k + '-old').textContent = 'Antes: $' + d.oldP.toFixed(2);
+      if (d.badge) document.getElementById(k + '-badge-slot').innerHTML = `<span class="discount-badge">${d.badge}</span>`;
     } else {
-      document.getElementById(k+'-price').innerHTML='<span class="price-na">No encontrado</span>';
+      document.getElementById(k + '-price').innerHTML = '<span class="price-na" style="color:red">No disponible</span>';
     }
   }
 
-  let winner=null;
-  if (Object.keys(precios).length) {
-    [winner] = Object.entries(precios).reduce((a,b)=>a[1]<=b[1]?a:b);
-    document.getElementById('card-'+winner).classList.add('winner');
-    prodaGuardar = { ean, titulo, lugar:STORES[winner].name, lugarId:winner, precio:precios[winner], allPrices:{...precios}, ts:Date.now() };
+  // 5. Verificar si ya está en el changuito
+  const listaActual = loadLista(activeProfileId());
+  const enChango = listaActual.find(i => i.ean === ean);
+  const container = document.getElementById('comparison-zone');
+  
+  if (enChango) {
+    const aviso = document.createElement('div');
+    aviso.id = 'aviso-changuito';
+    aviso.style.cssText = 'background: #eff6ff; border: 1px solid #3b82f6; color: #1e40af; padding: 8px 12px; border-radius: 8px; margin-bottom: 12px; font-weight: 600; font-size: 13px; text-align: center;';
+    aviso.textContent = '🛒 Este producto ya está en tu changuito';
+    container.prepend(aviso);
   }
-  document.getElementById('comparison-zone').style.display='block';
+
+  // 6. Resaltar el más barato (solo si tiene precio > 0)
+  let winner = null;
+  const disponibles = Object.entries(precios).filter(([k, v]) => v > 0);
+  if (disponibles.length > 0) {
+    [winner] = disponibles.reduce((a, b) => a[1] <= b[1] ? a : b);
+    document.getElementById('card-' + winner).classList.add('winner');
+  }
+
+  prodaGuardar = { ean, titulo, lugar: winner ? STORES[winner].name : 'N/A', lugarId: winner || 'ninguno', precio: winner ? precios[winner] : 0, allPrices: { ...precios }, ts: Date.now() };
+  
+  container.style.display = 'block';
   populateProfileSelect();
   return results;
 }
@@ -629,80 +664,87 @@ async function recalcularLista() {
 // ═══════════════════════════════════
 //  RENDER LIST
 // ═══════════════════════════════════
+// ═══════════════════════════════════
+//  RENDER LIST COMPLETO
+// ═══════════════════════════════════
 function renderLista() {
   populateProfileSelect();
-  const pid=document.getElementById('profile-list-select')?.value||activeProfileId();
-  const lista=loadLista(pid);
-  const bodyEl=document.getElementById('list-body');
-  bodyEl.innerHTML='';
+  const pid = document.getElementById('profile-list-select')?.value || activeProfileId();
+  const lista = loadLista(pid).reverse(); // .reverse() para mostrar los últimos agregados primero
+  const bodyEl = document.getElementById('list-body');
+  bodyEl.innerHTML = '';
+
+  // 1. Inyectar botón de recetas antes de la lista
+  bodyEl.innerHTML += `<div style="margin-bottom: 15px;">
+    <button class="btn btn-dark" style="width:100%" onclick="verificarRecetas()">🍳 Ver recetas posibles</button>
+  </div>`;
 
   if (!lista.length) {
-    bodyEl.innerHTML='<div class="empty-state"><div class="empty-icon">🛒</div><p>Buscá un producto y agregalo a esta lista.</p></div>';
-    document.getElementById('total-bar-wrap').style.display='none';
-    document.getElementById('store-compare-section').style.display='none';
+    bodyEl.innerHTML += '<div class="empty-state"><div class="empty-icon">🛒</div><p>Buscá un producto y agregalo.</p></div>';
+    document.getElementById('total-bar-wrap').style.display = 'none';
+    document.getElementById('store-compare-section').style.display = 'none';
     return;
   }
 
-  let total=0;
-  const storeTotals={coto:0,carrefour:0,dia:0,masonline:0};
-  const storeMissing={coto:0,carrefour:0,dia:0,masonline:0};
-  const storeFound={coto:0,carrefour:0,dia:0,masonline:0};
+  let total = 0;
+  const storeTotals = { coto: 0, carrefour: 0, dia: 0, masonline: 0 };
+  const storeMissing = { coto: 0, carrefour: 0, dia: 0, masonline: 0 };
+  const storeFound = { coto: 0, carrefour: 0, dia: 0, masonline: 0 };
 
-  lista.forEach((item,idx)=>{
-    const sub=(item.precio||0)*(item.cantidad||1);
-    total+=sub;
-    const stale=item.ts&&(Date.now()-item.ts)>86400000;
-    const noPrice=!item.precio;
-    const cls=noPrice?'no-price':stale?'stale':'';
-    const logo=STORES[item.lugarId]?.logo||'';
+  lista.forEach((item, idx) => {
+    // Si el precio es 0 o no existe, tratamos como no disponible
+    const esNoDisponible = !item.precio || item.precio === 0;
+    const sub = (item.precio || 0) * (item.cantidad || 1);
+    total += sub;
+    
+    // Generar etiquetas de disponibilidad por tienda
+    const ap = item.allPrices || {};
+    const tiendasHTML = Object.keys(STORES).map(k => {
+      const disponible = ap[k] !== undefined;
+      return `
+        <div style="font-size: 8px; padding: 2px 4px; border-radius: 3px; margin: 1px;
+                    background: ${disponible ? '#dcfce7' : '#fee2e2'}; 
+                    color: ${disponible ? '#166534' : '#991b1b'};
+                    text-decoration: ${disponible ? 'none' : 'line-through'};">
+          ${STORES[k].name}
+        </div>`;
+    }).join('');
 
-    // per-store aggregation — only count stores where product is found
-    const ap=item.allPrices||{};
+    // Actualizar agregados de tiendas
     for (const s of Object.keys(storeTotals)) {
-      if (ap[s]!==undefined) {
-        storeTotals[s]+=ap[s]*(item.cantidad||1);
+      if (ap[s] !== undefined) {
+        storeTotals[s] += ap[s] * (item.cantidad || 1);
         storeFound[s]++;
       } else {
         storeMissing[s]++;
-        // Do NOT add to total if missing — we'll mark incomplete
       }
     }
-    const precioFormateado = new Intl.NumberFormat('es-AR', {
-      style: 'currency',
-      currency: 'ARS',
-    }).format(sub);
 
-    const ts=item.ts?new Date(item.ts).toLocaleString('es-AR',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):'—';
-    bodyEl.innerHTML+=`
-    <div class="list-item ${cls}">
+    const precioDisplay = esNoDisponible ? '<span style="color:red; font-weight:bold;">S/P</span>' : 
+                          new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(sub);
+
+    bodyEl.innerHTML += `
+    <div class="list-item ${esNoDisponible ? 'no-price' : ''}">
       <div style="flex:1;min-width:0">
-      <div class="item-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><strong>${item.lugar}</strong></div>
-        <div class="item-name">${item.titulo}</div>
-        <div class="item-meta">EAN ${item.ean} · ${ts}</div>
-        ${stale?'<div class="item-meta" style="color:var(--amber)">⚠ Precio desactualizado</div>':''}
-        ${noPrice?'<div class="item-meta" style="color:var(--red)">Sin precio</div>':''}
+        <div class="item-name" style="font-weight:700">${item.titulo}</div>
+        <div class="item-meta" style="display:flex; flex-wrap:wrap; margin-top:4px;">${tiendasHTML}</div>
       </div>
       <div class="qty-ctrl">
-        <button class="qty-btn" onclick="cambiarCantidad('${pid}',${idx},-1)">−</button>
-        <span class="qty-num">${item.cantidad||1}</span>
-        <button class="qty-btn" onclick="cambiarCantidad('${pid}',${idx},1)">+</button>
+        <button class="qty-btn" onclick="cambiarCantidad('${pid}',${lista.length - 1 - idx},-1)">−</button>
+        <span class="qty-num">${item.cantidad || 1}</span>
+        <button class="qty-btn" onclick="cambiarCantidad('${pid}',${lista.length - 1 - idx},1)">+</button>
       </div>
-      <div class="item-price">${precioFormateado}</div>
-      <button class="btn-del" onclick="eliminarItem('${pid}',${idx})">🗑</button>
+      <div class="item-price">${precioDisplay}</div>
+      <button class="btn-del" onclick="eliminarItem('${pid}',${lista.length - 1 - idx})">🗑</button>
     </div>`;
   });
 
-  const precioTotalFormateado = new Intl.NumberFormat('es-AR', {
-      style: 'currency',
-      currency: 'ARS',
-    }).format(total);
+  document.getElementById('total-bar-wrap').style.display = 'block';
+  document.getElementById('list-total').textContent = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(total);
+  document.getElementById('list-items-count').textContent = lista.length + ' productos';
 
-  document.getElementById('total-bar-wrap').style.display='block';
-  document.getElementById('list-total').textContent=precioTotalFormateado;
-  document.getElementById('list-items-count').textContent=lista.length+' productos · '+lista.reduce((a,i)=>a+(i.cantidad||1),0)+' unidades';
-
-  document.getElementById('store-compare-section').style.display='block';
-  renderStoreCompare(storeTotals,storeMissing,storeFound,lista.length);
+  document.getElementById('store-compare-section').style.display = 'block';
+  renderStoreCompare(storeTotals, storeMissing, storeFound, lista.length);
 }
 
 function renderStoreCompare(totals,missing,found,totalProds) {
