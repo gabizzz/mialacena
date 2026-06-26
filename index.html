@@ -789,7 +789,7 @@ function renderStoreCompare(totals,missing,found,units,totalProds) {
   const winner=topEntries.reduce((a,b)=>a.v<=b.v?a:b,topEntries[0]);
 
   const maxVal=Math.max(...entries.filter(e=>e.v>0).map(e=>e.v),1);
-  const lista=loadLista(p.id);
+  const lista = loadLista(pid).reverse();
   let html='';
   entries.forEach(e=>{
     const isWinner=e.k===winner?.k&&e.found>0;
