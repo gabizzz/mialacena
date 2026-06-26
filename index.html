@@ -504,7 +504,7 @@ async function fetchVtex(ean, base) {
 //  BUSCAR PRECIOS COMPLETO
 // ═══════════════════════════════════
 async function buscarPrecios(silencioso) {
-  const ean = document.getElementById('eanInput').value.trim() || document.getElementById('smartInput')?.value.trim();
+  const ean = document.getElementById('smartInput').value.trim();
   if (!ean) { if(!silencioso) alert("Ingresá un código de barras."); return null; }
 
   // 1. Reset visual y preparación
@@ -1113,8 +1113,6 @@ function buscarInteligente() {
   document.getElementById('texto-results').style.display = 'none';
   document.getElementById('comparison-zone').style.display = 'none';
   if (esEAN(val)) {
-    // Poner el valor en eanInput (que usa buscarPrecios) y llamarlo
-    document.getElementById('eanInput').value = val;
     buscarPrecios();
   } else {
     buscarPorTexto(val);
@@ -1204,7 +1202,9 @@ async function fetchTextoCoto(query) {
       precio = parseFloat(String(d.discounts[0].discountPrice).replace(/[^0-9.-]+/g,''));
       badge = d.discounts[0].discountText || null;
     }
-    return { ean: d.item_id || d.ean || p.id || null, titulo: d.sku_display_name || p.value || '', marca: d.product_brand || '', img: d.image_url || '', precio, oldP, badge };
+    // EAN real puede estar en varios campos; item_id es el identificador interno de Coto
+    const ean = d.ean || d.gtin || d.item_id || p.id || null;
+    return { ean: String(ean), titulo: d.sku_display_name || p.value || '', marca: d.product_brand || '', img: d.image_url || '', precio, oldP, badge };
   }).filter(p => p.ean && p.precio > 0);
 }
 
@@ -1218,8 +1218,12 @@ async function fetchTextoVtex(query, base, storeKey) {
     const listP = offer.ListPrice, spotP = offer.Price;
     let badge = null, oldP = null;
     if (listP > spotP) { badge = Math.round(((listP-spotP)/listP)*100)+'% DTO'; oldP = listP; }
-    const ean = p.items?.[0]?.referenceId?.[0]?.Value || p.items?.[0]?.ean || null;
-    return { ean, titulo: p.productName || '', marca: p.brand || '', img: p.items?.[0]?.images?.[0]?.imageUrl || '', precio: parseFloat(spotP), oldP, badge };
+    // Intentar obtener EAN real, luego productId como fallback
+    const ean = p.items?.[0]?.referenceId?.find(r => r.Key === 'RefId')?.Value
+      || p.items?.[0]?.referenceId?.[0]?.Value
+      || p.productId
+      || null;
+    return { ean: ean ? String(ean) : null, titulo: p.productName || '', marca: p.brand || '', img: p.items?.[0]?.images?.[0]?.imageUrl || '', precio: parseFloat(spotP), oldP, badge };
   }).filter(p => p && p.ean && p.precio > 0);
 }
 
@@ -1332,7 +1336,6 @@ function cerrarCopiar() {
   populateProfileSelect();
   renderPerfiles();
   updateCartHeader();
-  document.getElementById('eanInput').addEventListener('keydown',e=>{if(e.key==='Enter')buscarPrecios();});
   document.getElementById('smartInput').addEventListener('keydown',e=>{if(e.key==='Enter')buscarInteligente();});
 })();
 </script>
