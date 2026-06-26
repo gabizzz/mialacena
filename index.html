@@ -713,6 +713,7 @@ function renderLista() {
   const storeTotals = { coto: 0, carrefour: 0, dia: 0, masonline: 0 };
   const storeMissing = { coto: 0, carrefour: 0, dia: 0, masonline: 0 };
   const storeFound = { coto: 0, carrefour: 0, dia: 0, masonline: 0 };
+  const storeUnits = { coto: 0, carrefour: 0, dia: 0, masonline: 0 };
 
   lista.forEach((item, idx) => {
     // Si el precio es 0 o no existe, tratamos como no disponible
@@ -722,6 +723,7 @@ function renderLista() {
     
     // Generar etiquetas de disponibilidad por tienda
     const ap = item.allPrices || {};
+    const cantidad = item.cantidad || 1; // Obtener cantidad
     const tiendasHTML = Object.keys(STORES).map(k => {
       const disponible = ap[k] !== undefined;
       return `
@@ -733,15 +735,15 @@ function renderLista() {
         </div>`;
     }).join('');
 
-    // Actualizar agregados de tiendas
     for (const s of Object.keys(storeTotals)) {
       if (ap[s] !== undefined) {
-        storeTotals[s] += ap[s] * (item.cantidad || 1);
+        storeTotals[s] += ap[s] * cantidad;
         storeFound[s]++;
-      } else {
+        storeUnits[s] = (storeUnits[s] || 0) + cantidad; // Nueva variable para unidades
+      }else {
         storeMissing[s]++;
       }
-    }
+    }    
 
     const precioDisplay = esNoDisponible ? '<span style="color:red; font-weight:bold;">S/P</span>' : 
                           new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(sub);
@@ -767,17 +769,18 @@ function renderLista() {
   document.getElementById('list-items-count').textContent = lista.length + ' productos';
 
   document.getElementById('store-compare-section').style.display = 'block';
-  renderStoreCompare(storeTotals, storeMissing, storeFound, lista.length);
+  renderStoreCompare(storeTotals, storeMissing, storeFound, storeUnits, lista.length);
 }
 
-function renderStoreCompare(totals,missing,found,totalProds) {
+function renderStoreCompare(totals,missing,found,units,totalProds) {
   const tableEl=document.getElementById('store-compare-table');
   const missingEl=document.getElementById('missing-alert');
 
   // Sort by: most products found first, then cheapest
   const entries=Object.entries(totals).map(([k,v])=>({
     k,v,name:STORES[k].name,logo:STORES[k].logo,color:STORES[k].color,
-    missing:missing[k],found:found[k]
+    missing:missing[k],found:found[k],
+    units: units[k]
   })).sort((a,b)=>b.found-a.found||(a.v-b.v));
 
   // Find best: most found, then cheapest among those with most found
@@ -798,15 +801,16 @@ function renderStoreCompare(totals,missing,found,totalProds) {
       currency: 'ARS',
     }).format(e.v);
 
-    html+=`
+    html += `
     <div class="store-compare-row ${isWinner ? 'winner-row' : ''} ${incomplete ? 'incomplete' : ''}">
-      <div class="sc-logo">
-        <div class="store-dot" style="background:${e.color}"></div>
-      </div>
+      <div class="sc-logo"><div class="store-dot" style="background:${e.color}"></div></div>
       <div class="sc-info">
         <div class="sc-name">${e.name}${isWinner ? '<span class="crown">🏆</span>' : ''}</div>
-        <div class="sc-sub">${e.found} de ${totalProds} productos${e.found === 0 ? ' (no disponible)' : ''}</div>
-        ${e.missing > 0 ? `<span class="sc-missing-tag">⚠ faltan ${e.missing} productos — no incluidos</span>` : ''}
+        <div class="sc-sub">
+            ${e.found} prod. / <b>${e.units} unidades</b>
+            ${e.found === 0 ? ' (no disponible)' : ''}
+        </div>
+        ${e.missing > 0 ? `<span class="sc-missing-tag">⚠ faltan ${e.missing} prod.</span>` : ''}
       </div>
       ${e.found > 0 ? `
       <div style="display:flex;align-items:center;gap:8px">
