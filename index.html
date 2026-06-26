@@ -685,11 +685,95 @@ async function recalcularLista() {
 }
 
 // ═══════════════════════════════════
-//  RENDER LIST
+//  Buscar Alternativa
 // ═══════════════════════════════════
+// Variable global para evitar problemas de comillas en el HTML
+let alternativasTemporales = [];
+
+async function buscarAlternativa(storeKey, eanOriginal, tituloOriginal) {
+  const modal = document.getElementById('modal-alternativas');
+  const listaEl = document.getElementById('lista-alternativas');
+  
+  modal.style.display = 'flex';
+  listaEl.innerHTML = `Buscando alternativas en ${STORES[storeKey].name}...`;
+
+  try {
+    let prods = [];
+    if (storeKey === 'coto') {
+      const url = `https://ac.cnstrc.com/search/${encodeURIComponent(tituloOriginal)}?c=cio-ui-autocomplete-1.29.3&key=key_r6xzz4IAoTWcipni`;
+      const r = await fetch(url).then(x => x.json());
+      prods = r?.response?.results || r?.sections?.Products || [];
+      alternativasTemporales = prods.map(p => ({
+        titulo: p.data?.sku_display_name || p.value || "Producto",
+        precio: parseFloat(p.data?.product_list_price || p.data?.price || 0),
+        ean: p.data?.item_id || p.data?.ean || p.id || ""
+      }));
+    } else {
+      const baseUrl = STORES[storeKey].base;
+      const url = `${PROXY}${encodeURIComponent(`${baseUrl}/api/io/_v/api/intelligent-search/product_search?query=${encodeURIComponent(tituloOriginal)}`)}`;
+      const r = await fetch(url).then(x => x.json());
+      prods = r.products || [];
+      alternativasTemporales = prods.map(p => ({
+        titulo: p.productName,
+        precio: p.items?.[0]?.sellers?.[0]?.commertialOffer?.Price || 0,
+        ean: p.items?.[0]?.referenceId?.[0]?.Value
+      }));
+    }
+
+    if (alternativasTemporales.length === 0) {
+      listaEl.innerHTML = 'No se encontraron alternativas.';
+      return;
+    }
+
+    listaEl.innerHTML = '';
+    alternativasTemporales.forEach((prod, index) => {
+      const precioMostrado = !isNaN(prod.precio) ? `$${prod.precio.toFixed(2)}` : 'S/P';
+      // Usamos el index en lugar de JSON.stringify
+      listaEl.innerHTML += `
+        <div style="border:1px solid var(--g200); padding:10px; margin-bottom:10px; border-radius:var(--rsm); cursor:pointer;" 
+             onclick="seleccionarReemplazo(${index}, '${eanOriginal}', '${storeKey}')">
+          <strong>${prod.titulo}</strong><br>
+          <span style="color:var(--green)">${precioMostrado}</span>
+        </div>`;
+    });
+  } catch (err) {
+    listaEl.innerHTML = 'Error al buscar: ' + err.message;
+    console.error(err);
+  }
+}
+
+// Puente para procesar la selección de forma segura
+function seleccionarReemplazo(index, eanOriginal, storeKey) {
+  const prod = alternativasTemporales[index];
+  
+  const nuevoProducto = {
+    ...prod, // Copiamos título, ean, precio
+    allPrices: { [storeKey]: prod.precio } // Forzamos la tienda actual como disponible
+  };
+
+  confirmarReemplazo(eanOriginal, nuevoProducto);
+}
+
+function confirmarReemplazo(eanOriginal, nuevoProducto) {
+  const pid = activeProfileId();
+  let lista = loadLista(pid);
+  const index = lista.findIndex(i => i.ean === eanOriginal);
+  
+  if (index !== -1) {
+    nuevoProducto.cantidad = lista[index].cantidad; 
+    lista[index] = nuevoProducto;
+    
+    saveLista(pid, lista);
+    document.getElementById('modal-alternativas').style.display = 'none';
+    renderLista(); 
+    showToast("✅ Producto reemplazado correctamente");
+  }
+}
+
 // ═══════════════════════════════════
 //  RENDER LIST COMPLETO
 // ═══════════════════════════════════
+
 function renderLista() {
   populateProfileSelect();
   const pid = document.getElementById('profile-list-select')?.value || activeProfileId();
@@ -727,7 +811,8 @@ function renderLista() {
     const tiendasHTML = Object.keys(STORES).map(k => {
       const disponible = ap[k] !== undefined;
       return `
-        <div style="font-size: 8px; padding: 2px 4px; border-radius: 3px; margin: 1px;
+        <div onclick="buscarAlternativa('${k}', '${item.ean}', '${item.titulo}')" 
+             style="cursor: pointer; font-size: 8px; padding: 2px 4px; border-radius: 3px; margin: 1px;
                     background: ${disponible ? '#dcfce7' : '#fee2e2'}; 
                     color: ${disponible ? '#166534' : '#991b1b'};
                     text-decoration: ${disponible ? 'none' : 'line-through'};">
@@ -982,5 +1067,14 @@ function showToast(msg) {
   document.getElementById('eanInput').addEventListener('keydown',e=>{if(e.key==='Enter')buscarPrecios();});
 })();
 </script>
+
+<div id="modal-alternativas" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:10000; justify-content:center; align-items:center;">
+  <div style="background:white; padding:20px; border-radius:var(--rmd); width:90%; max-width:400px; max-height:80vh; overflow-y:auto;">
+    <h3 id="modal-titulo">Seleccionar reemplazo</h3>
+    <div id="lista-alternativas" style="margin:15px 0;"></div>
+    <button class="btn btn-dark" onclick="document.getElementById('modal-alternativas').style.display='none'">Cancelar</button>
+  </div>
+</div>
+
 </body>
 </html>
