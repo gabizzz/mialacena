@@ -752,6 +752,7 @@ function renderLista() {
     <div class="list-item ${esNoDisponible ? 'no-price' : ''}">
       <div style="flex:1;min-width:0">
         <div class="item-name" style="font-weight:700">${item.titulo}</div>
+        <div style="font-size: 11px; color: #a0aec0;">EAN: ${item.ean}</div>
         <div class="item-meta" style="display:flex; flex-wrap:wrap; margin-top:4px;">${tiendasHTML}</div>
       </div>
       <div class="qty-ctrl">
