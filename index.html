@@ -807,7 +807,7 @@ function renderStoreCompare(totals,missing,found,units,totalProds) {
       <div class="sc-info">
         <div class="sc-name">${e.name}${isWinner ? '<span class="crown">🏆</span>' : ''}</div>
         <div class="sc-sub">
-            ${e.found} prod. / <b>${e.units} unidades</b>
+            ${e.found} de ${e.cantidad} prod. / <b>${e.units} unidades</b>
             ${e.found === 0 ? ' (no disponible)' : ''}
         </div>
         ${e.missing > 0 ? `<span class="sc-missing-tag">⚠ faltan ${e.missing} prod.</span>` : ''}
