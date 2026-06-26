@@ -367,7 +367,7 @@ const STORES = {
   masonline: { id:'masonline', name:'ChangoMás', color:'#2d2440', logo:'https://www.masonline.com.ar/arquivos/logo-changomas-header.png', base:'https://www.masonline.com.ar' }
 };
 const PROXY = "https://corsproxy.io/?";
-
+let filtroMercadoActivo = null; // null significa "mostrar todo"
 // ═══════════════════════════════════
 //  STATE
 // ═══════════════════════════════════
@@ -419,6 +419,7 @@ function updateCartHeader() {
       currency: 'ARS',
     }).format(total);
 
+  
   document.getElementById('cart-badge').textContent = units;
   document.getElementById('cart-total-header').textContent = precioHeaderFormateado;
 }
@@ -579,33 +580,22 @@ function resetCards() {
     document.getElementById(k+'-price').textContent='—';
   }
 }
-// ═══════════════════════════════════
-//  RECETAS
-// ═══════════════════════════════════
-function verificarRecetas() {
-  const listaEans = loadLista(activeProfileId()).map(i => i.ean);
-  let sugerencias = RECETAS.map(receta => {
-    const faltantes = receta.eans.filter(ean => !listaEans.includes(ean));
-    return { ...receta, faltantes };
-  });
-
-  let html = `<div class="section-title">Sugerencia de Recetas</div>`;
-  sugerencias.forEach(r => {
-    const puedeCocinar = r.faltantes.length === 0;
-    html += `
-      <div style="background: white; padding: 10px; margin-bottom: 5px; border-radius: var(--rmd); border: 1px solid ${puedeCocinar ? 'var(--green)' : 'var(--amber)'}">
-        <strong>${r.nombre}</strong> ${puedeCocinar ? '✅' : '❌'}
-        ${!puedeCocinar ? `<div style="font-size:11px; color:var(--red)">Faltan: ${r.faltantes.length} productos</div>` : ''}
-      </div>`;
-  });
-  
-  // Puedes inyectar esto antes del list-body
-  document.getElementById('list-body').insertAdjacentHTML('afterbegin', html);
-}
 
 // ═══════════════════════════════════
 //  LIST
 // ═══════════════════════════════════
+
+function filtrarPorTienda(storeKey) {
+  // Si ya estaba activo, lo apaga; si no, lo enciende.
+  filtroMercadoActivo = (filtroMercadoActivo === storeKey) ? null : storeKey;
+  
+  // Refresca la lista principal
+  renderLista();
+  
+  // Opcional: Avisar al usuario
+  if(filtroMercadoActivo) showToast(`Filtrando: faltantes en ${STORES[storeKey].name}`);
+}
+
 function populateProfileSelect() {
   const profiles=loadProfiles(); const actId=activeProfileId();
   ['add-to-profile-select','profile-list-select','import-target-profile'].forEach(id=>{
@@ -777,37 +767,60 @@ function confirmarReemplazo(eanOriginal, nuevoProducto) {
 function renderLista() {
   populateProfileSelect();
   const pid = document.getElementById('profile-list-select')?.value || activeProfileId();
-  const lista = loadLista(pid).reverse(); // .reverse() para mostrar los últimos agregados primero
+  let lista = loadLista(pid).reverse(); 
+
+  // --- NUEVO: FILTRO ---
+  if (filtroMercadoActivo) {
+    lista = lista.filter(item => {
+      const ap = item.allPrices || {};
+      // Filtramos: solo dejamos los productos que NO tienen precio en la tienda seleccionada
+      return ap[filtroMercadoActivo] === undefined;
+    });
+  }
+  // ---------------------
+
   const bodyEl = document.getElementById('list-body');
   bodyEl.innerHTML = '';
 
-  // 1. Inyectar botón de recetas antes de la lista
-  /*bodyEl.innerHTML += `<div style="margin-bottom: 15px;">
-    <button class="btn btn-dark" style="width:100%" onclick="verificarRecetas()">🍳 Ver recetas posibles</button>
-  </div>`;*/
-
+  // Si después de filtrar la lista está vacía, mostramos un aviso
   if (!lista.length) {
-    bodyEl.innerHTML += '<div class="empty-state"><div class="empty-icon">🛒</div><p>Buscá un producto y agregalo.</p></div>';
+    const msg = filtroMercadoActivo ? `No hay faltantes en ${STORES[filtroMercadoActivo].name}.` : 'Buscá un producto y agregalo.';
+    bodyEl.innerHTML += `<div class="empty-state"><p>${msg}</p></div>`;
     document.getElementById('total-bar-wrap').style.display = 'none';
-    document.getElementById('store-compare-section').style.display = 'none';
+    document.getElementById('store-compare-section').style.display = filtroMercadoActivo ? 'block' : 'none';
     return;
   }
 
   let total = 0;
+  // NOTA: Para los contadores globales, seguimos usando la lista completa (no filtrada)
+  const listaCompleta = loadLista(pid); 
   const storeTotals = { coto: 0, carrefour: 0, dia: 0, masonline: 0 };
   const storeMissing = { coto: 0, carrefour: 0, dia: 0, masonline: 0 };
   const storeFound = { coto: 0, carrefour: 0, dia: 0, masonline: 0 };
   const storeUnits = { coto: 0, carrefour: 0, dia: 0, masonline: 0 };
 
+  // Calculamos contadores usando la lista completa
+  listaCompleta.forEach(item => {
+    const ap = item.allPrices || {};
+    const cantidad = item.cantidad || 1;
+    for (const s of Object.keys(storeTotals)) {
+      if (ap[s] !== undefined) {
+        storeTotals[s] += ap[s] * cantidad;
+        storeFound[s]++;
+        storeUnits[s] = (storeUnits[s] || 0) + cantidad;
+      } else {
+        storeMissing[s]++;
+      }
+    }
+  });
+
+  // Renderizamos los items (filtrados o no)
   lista.forEach((item, idx) => {
-    // Si el precio es 0 o no existe, tratamos como no disponible
     const esNoDisponible = !item.precio || item.precio === 0;
     const sub = (item.precio || 0) * (item.cantidad || 1);
     total += sub;
     
-    // Generar etiquetas de disponibilidad por tienda
     const ap = item.allPrices || {};
-    const cantidad = item.cantidad || 1; // Obtener cantidad
     const tiendasHTML = Object.keys(STORES).map(k => {
       const disponible = ap[k] !== undefined;
       return `
@@ -815,20 +828,11 @@ function renderLista() {
              style="cursor: pointer; font-size: 8px; padding: 2px 4px; border-radius: 3px; margin: 1px;
                     background: ${disponible ? '#dcfce7' : '#fee2e2'}; 
                     color: ${disponible ? '#166534' : '#991b1b'};
-                    text-decoration: ${disponible ? 'none' : 'line-through'};">
+                    text-decoration: ${disponible ? 'none' : 'line-through'};
+                    border: ${filtroMercadoActivo === k ? '1px solid #000' : 'none'}">
           ${STORES[k].name}
         </div>`;
     }).join('');
-
-    for (const s of Object.keys(storeTotals)) {
-      if (ap[s] !== undefined) {
-        storeTotals[s] += ap[s] * cantidad;
-        storeFound[s]++;
-        storeUnits[s] = (storeUnits[s] || 0) + cantidad; // Nueva variable para unidades
-      }else {
-        storeMissing[s]++;
-      }
-    }    
 
     const precioDisplay = esNoDisponible ? '<span style="color:red; font-weight:bold;">S/P</span>' : 
                           new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(sub);
@@ -850,12 +854,22 @@ function renderLista() {
     </div>`;
   });
 
+  const headerInfo = document.getElementById('header-info');
+  if (headerInfo) {
+    headerInfo.innerHTML = ''; // Limpiamos lo anterior
+    if (filtroMercadoActivo) {
+      headerInfo.innerHTML = `
+        <button onclick="filtrarPorTienda(null)" style="background:#fcd34d; border:none; padding:5px 10px; border-radius:4px; cursor:pointer;">
+          ❌ Quitar filtro de ${STORES[filtroMercadoActivo].name}
+        </button>`;
+    }
+  }
+
   document.getElementById('total-bar-wrap').style.display = 'block';
   document.getElementById('list-total').textContent = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(total);
   document.getElementById('list-items-count').textContent = lista.length + ' productos';
-
   document.getElementById('store-compare-section').style.display = 'block';
-  renderStoreCompare(storeTotals, storeMissing, storeFound, storeUnits, lista.length);
+  renderStoreCompare(storeTotals, storeMissing, storeFound, storeUnits, listaCompleta.length);
 }
 
 function renderStoreCompare(totals,missing,found,units,totalProds) {
@@ -895,7 +909,7 @@ function renderStoreCompare(totals,missing,found,units,totalProds) {
             ${e.found} de ${totalProds} prod. / <b>${e.units} unidades</b>
             ${e.found === 0 ? ' (no disponible)' : ''}
         </div>
-        ${e.missing > 0 ? `<span class="sc-missing-tag">⚠ faltan ${e.missing} prod.</span>` : ''}
+        ${e.missing > 0 ? `<span class="sc-missing-tag" onclick="filtrarPorTienda('${e.k}')" style="cursor:pointer; text-decoration:underline;">⚠ faltan ${e.missing} prod.</span>` : ''}
       </div>
       ${e.found > 0 ? `
       <div style="display:flex;align-items:center;gap:8px">
