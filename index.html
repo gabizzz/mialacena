@@ -864,8 +864,8 @@ function renderLista() {
         <button class="qty-btn" onclick="cambiarCantidad('${pid}',${lista.length - 1 - idx},1)">+</button>
       </div>
       <div class="item-price">${precioDisplay}</div>
-      <button class="btn-del" title="Copiar a otra lista" onclick="abrirCopiarProducto('${pid}',${lista.length - 1 - idx})" style="font-size:13px;opacity:.45;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.45">📋</button>
-      <button class="btn-del" onclick="eliminarItem('${pid}',${lista.length - 1 - idx})">🗑</button>
+      <button class="btn-del" title="Copiar a otra lista" onclick="abrirCopiarProducto('${pid}',${lista.length - 1 - idx})" style="font-size:16px;opacity:.45;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.45">➔</button>
+      <button class="btn-del" onclick="eliminarItem('${pid}',${lista.length - 1 - idx})"><span style="font-size: 16px;">✕</span></button>
     </div>`;
   });
 
@@ -1179,6 +1179,7 @@ async function buscarPorTexto(query) {
       ${data.img ? `<img src="${data.img}" style="width:52px;height:52px;object-fit:contain;border-radius:6px;border:1px solid var(--g200);background:white;flex-shrink:0;" onerror="this.style.display='none'">` : ''}
       <div style="flex:1;min-width:0;">
         <div style="font-size:13px;font-weight:700;line-height:1.3;margin-bottom:5px;">${data.titulo}</div>
+        <div style="font-size:10px;color:var(--g400);margin-bottom:5px;">EAN: ${data.ean}</div>
         <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;">${storesHtml}</div>
         ${minEntry ? `<div style="font-size:11px;color:var(--g600);">Mejor precio: <b style="color:var(--green)">$${minEntry[1].precio.toFixed(2)}</b> en ${STORES[minEntry[0]].name}</div>` : ''}
       </div>
@@ -1203,7 +1204,7 @@ async function fetchTextoCoto(query) {
       badge = d.discounts[0].discountText || null;
     }
     // EAN real puede estar en varios campos; item_id es el identificador interno de Coto
-    const ean = d.ean || d.gtin || d.item_id || p.id || null;
+    const ean = d.product_main_ean || d.gtin || d.item_id || p.id || null;
     return { ean: String(ean), titulo: d.sku_display_name || p.value || '', marca: d.product_brand || '', img: d.image_url || '', precio, oldP, badge };
   }).filter(p => p.ean && p.precio > 0);
 }
@@ -1229,23 +1230,38 @@ async function fetchTextoVtex(query, base, storeKey) {
 
 function agregarDesdeTexto(i) {
   const data = textoResultsTemp[i];
-  if (!data) return;
-  const precios = {};
-  for (const [k, s] of Object.entries(data.stores || {})) { if (s.precio > 0) precios[k] = s.precio; }
-  let winner = null;
-  const disponibles = Object.entries(precios);
-  if (disponibles.length) [winner] = disponibles.reduce((a, b) => a[1] <= b[1] ? a : b);
+    if (!data) return;
+    
+    // Aseguramos que el EAN exista
+    const ean = data.ean || data.product_main_ean; 
+    if (!ean) {
+      console.error("No se encontró el EAN en el producto seleccionado");
+      return;
+    }
 
-  prodaGuardar = {
-    ean: data.ean,
-    titulo: data.titulo,
-    lugar: winner ? STORES[winner].name : 'N/A',
-    lugarId: winner || 'ninguno',
-    precio: winner ? precios[winner] : 0,
-    allPrices: precios,
-    ts: Date.now()
-  };
+    const precios = {};
+    for (const [k, s] of Object.entries(data.stores || {})) { 
+      if (s.precio > 0) precios[k] = s.precio; 
+    }
+    
+    let winner = null;
+    const disponibles = Object.entries(precios);
+    if (disponibles.length) [winner] = disponibles.reduce((a, b) => a[1] <= b[1] ? a : b);
 
+    console.log("Índice:", i);
+    console.log("Datos del producto:", textoResultsTemp[i]);
+    // Actualizamos la variable global
+    prodaGuardar = {
+      ean: ean, // Aquí asignamos explícitamente
+      titulo: data.titulo,
+      lugar: winner ? STORES[winner].name : 'N/A',
+      lugarId: winner || 'ninguno',
+      precio: winner ? precios[winner] : 0,
+      allPrices: precios,
+      ts: Date.now()
+    };
+
+  console.log("Producto preparado para guardar:", prodaGuardar); // Debug
   const profiles = loadProfiles();
   document.getElementById('copiar-producto-nombre').innerHTML = `<b>${data.titulo}</b>`;
   const optsEl = document.getElementById('copiar-listas-opciones');
