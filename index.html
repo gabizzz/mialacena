@@ -471,7 +471,7 @@ function changeAddQty(d) {
 //  FETCH
 // ═══════════════════════════════════
 async function fetchCoto(ean) {
-  const url = `https://ac.cnstrc.com/autocomplete/${ean}?c=cio-ui-autocomplete-1.29.3&key=key_r6xzz4IAoTWcipni&num_results_Products=1`;
+  const url = `https://ac.cnstrc.com/autocomplete/${ean}?c=cio-ui-autocomplete-1.29.3&key=key_r6xzz4IAoTWcipni`;
   const r = await fetch(url).then(x=>x.json());
   const prod = r?.sections?.Products?.[0]; if (!prod) return null;
   const d = prod.data;
@@ -1190,7 +1190,7 @@ async function buscarPorTexto(query) {
 }
 
 async function fetchTextoCoto(query) {
-  const url = `https://ac.cnstrc.com/search/${encodeURIComponent(query)}?c=cio-ui-autocomplete-1.29.3&key=key_r6xzz4IAoTWcipni&num_results=6`;
+  const url = `https://ac.cnstrc.com/search/${encodeURIComponent(query)}?c=cio-ui-autocomplete-1.29.3&key=key_r6xzz4IAoTWcipni`;
   const r = await fetch(url).then(x => x.json());
   const prods = r?.response?.results || r?.sections?.Products || [];
   return prods.map(p => {
