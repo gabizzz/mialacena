@@ -388,6 +388,7 @@ let filtroMercadoActivo = null; // null significa "mostrar todo"
 let html5QrcodeScanner = null;
 let prodaGuardar = null;
 let addQty = 1;
+let unidadesLista = 0;
 
 function loadProfiles() {
   const raw = localStorage.getItem('sp_profiles');
@@ -779,7 +780,8 @@ function confirmarReemplazo(eanOriginal, nuevoProducto) {
 // ═══════════════════════════════════
 
 function renderLista() {
-  populateProfileSelect();
+  unidadesLista=0;
+  //populateProfileSelect();
   const pid = document.getElementById('profile-list-select')?.value || activeProfileId();
   let lista = loadLista(pid).reverse(); 
 
@@ -828,10 +830,13 @@ function renderLista() {
     }
   });
 
+  
   // Renderizamos los items (filtrados o no)
   lista.forEach((item, idx) => {
     const esNoDisponible = !item.precio || item.precio === 0;
     const sub = (item.precio || 0) * (item.cantidad || 1);
+    unidadesLista += item.cantidad;
+    console.log(unidadesLista);
     total += sub;
     
     const ap = item.allPrices || {};
@@ -851,21 +856,32 @@ function renderLista() {
     const precioDisplay = esNoDisponible ? '<span style="color:red; font-weight:bold;">S/P</span>' : 
                           new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(sub);
 
+    // 🆕 NUEVO: Calculamos el índice real inverso debido al .reverse() para pasarlo a la función
+    const realIdx = lista.length - 1 - idx; 
+    const estaComprado = item.comprado || false;
+
     bodyEl.innerHTML += `
-    <div class="list-item ${esNoDisponible ? 'no-price' : ''}">
-      <div style="flex:1;min-width:0">
+    <div class="list-item ${esNoDisponible ? 'no-price' : ''} ${estaComprado ? 'checked-item' : ''}" style="${estaComprado ? 'opacity: 0.6;' : ''}">
+      
+      <div style="margin-right: 12px; display: flex; align-items: center;">
+        <input type="checkbox" ${estaComprado ? 'checked' : ''} 
+               onclick="toggleComprado('${pid}', ${realIdx})" 
+               style="width: 18px; height: 18px; cursor: pointer;">
+      </div>
+
+      <div style="flex:1;min-width:0; ${estaComprado ? 'text-decoration: line-through;' : ''}">
         <div class="item-name" style="font-weight:700">${item.titulo}</div>
         <div style="font-size: 11px; color: #a0aec0;">EAN: ${item.ean}</div>
         <div class="item-meta" style="display:flex; flex-wrap:wrap; margin-top:4px;">${tiendasHTML}</div>
       </div>
       <div class="qty-ctrl">
-        <button class="qty-btn" onclick="cambiarCantidad('${pid}',${lista.length - 1 - idx},-1)">−</button>
+        <button class="qty-btn" onclick="cambiarCantidad('${pid}',${realIdx},-1)">−</button>
         <span class="qty-num">${item.cantidad || 1}</span>
-        <button class="qty-btn" onclick="cambiarCantidad('${pid}',${lista.length - 1 - idx},1)">+</button>
+        <button class="qty-btn" onclick="cambiarCantidad('${pid}',${realIdx},1)">+</button>
       </div>
-      <div class="item-price">${precioDisplay}</div>
-      <button class="btn-del" title="Copiar a otra lista" onclick="abrirCopiarProducto('${pid}',${lista.length - 1 - idx})" style="font-size:16px;opacity:.45;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.45">➔</button>
-      <button class="btn-del" onclick="eliminarItem('${pid}',${lista.length - 1 - idx})"><span style="font-size: 16px;">✕</span></button>
+      <div class="item-price" style="${estaComprado ? 'text-decoration: line-through;' : ''}">${precioDisplay}</div>
+      <button class="btn-del" title="Copiar a otra lista" onclick="abrirCopiarProducto('${pid}',${realIdx})" style="font-size:16px;opacity:.45;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.45">➔</button>
+      <button class="btn-del" onclick="eliminarItem('${pid}',${realIdx})"><span style="font-size: 16px;">✕</span></button>
     </div>`;
   });
 
@@ -882,21 +898,39 @@ function renderLista() {
 
   document.getElementById('total-bar-wrap').style.display = 'block';
   document.getElementById('list-total').textContent = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(total);
-  document.getElementById('list-items-count').textContent = lista.length + ' productos';
+  document.getElementById('list-items-count').textContent = lista.length + ' productos / '+unidadesLista+' unidades';
   document.getElementById('store-compare-section').style.display = 'block';
   renderStoreCompare(storeTotals, storeMissing, storeFound, storeUnits, listaCompleta.length);
+}
+
+function toggleComprado(pid, index) {
+  // 1. Cargamos la lista original (sin revertir)
+  let lista = loadLista(pid);
+  
+  if (lista[index]) {
+    // 2. Invertimos el estado 'comprado'
+    lista[index].comprado = !lista[index].comprado;
+    
+    // 3. Guardamos la lista actualizada (Modificá 'saveLista' por el nombre real de tu función para guardar)
+    saveLista(pid, lista); 
+    
+    // 4. Volvemos a dibujar la lista en pantalla
+    renderLista();
+  }
 }
 
 function renderStoreCompare(totals,missing,found,units,totalProds) {
   const tableEl=document.getElementById('store-compare-table');
   const missingEl=document.getElementById('missing-alert');
 
-  // Sort by: most products found first, then cheapest
+  // 1. Mapeamos, FILTRAMOS las tiendas que tengan 0 productos, y luego ordenamos
   const entries=Object.entries(totals).map(([k,v])=>({
     k,v,name:STORES[k].name,logo:STORES[k].logo,color:STORES[k].color,
     missing:missing[k],found:found[k],
     units: units[k]
-  })).sort((a,b)=>b.found-a.found||(a.v-b.v));
+  }))
+  .filter(e => e.found > 0) // <-- 🎯 ESTA LÍNEA ELIMINA LAS TIENDAS CON 0 PRODUCTOS
+  .sort((a,b)=>b.found-a.found||(a.v-b.v));
 
   // Find best: most found, then cheapest among those with most found
   const maxFound=entries[0]?.found||0;
@@ -915,6 +949,7 @@ function renderStoreCompare(totals,missing,found,units,totalProds) {
       currency: 'ARS',
     }).format(e.v);
 
+    // Como ya filtramos los e.found === 0, eliminé las validaciones redundantes de HTML
     html += `
     <div class="store-compare-row ${isWinner ? 'winner-row' : ''} ${incomplete ? 'incomplete' : ''}">
       <div class="sc-logo"><div class="store-dot" style="background:${e.color}"></div></div>
@@ -922,15 +957,13 @@ function renderStoreCompare(totals,missing,found,units,totalProds) {
         <div class="sc-name">${e.name}${isWinner ? '<span class="crown">🏆</span>' : ''}</div>
         <div class="sc-sub">
             ${e.found} de ${totalProds} prod. / <b>${e.units} unidades</b>
-            ${e.found === 0 ? ' (no disponible)' : ''}
         </div>
         ${e.missing > 0 ? `<span class="sc-missing-tag" onclick="filtrarPorTienda('${e.k}')" style="cursor:pointer; text-decoration:underline;">⚠ faltan ${e.missing} prod.</span>` : ''}
       </div>
-      ${e.found > 0 ? `
       <div style="display:flex;align-items:center;gap:8px">
         <div class="sc-bar-wrap"><div class="sc-bar" style="width:${pct}%;background:${e.color}"></div></div>
         <div class="sc-total" style="color:${isWinner ? 'var(--green)' : 'var(--g800)'}">${precioCompFormateado}</div>
-      </div>` : `<div class="sc-total" style="color:var(--g400)">—</div>`}
+      </div>
     </div>`;
   });
   tableEl.innerHTML=html;
