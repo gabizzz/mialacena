@@ -287,11 +287,37 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;b
   <!-- ══ TAB LISTA ══ -->
   <div id="tab-lista" style="display:none">
     <div class="list-controls">
-      <select id="profile-list-select" onchange="renderLista()"></select>
+      <select id="profile-list-select" onchange="activarPerfil(this.value)"></select>
       <button class="btn btn-blue btn-sm" onclick="recalcularLista()">↺ Actualizar</button>
-      <button class="btn btn-ghost btn-sm" onclick="abrirCompartir()">⬆ Compartir</button>
+      <button class="btn btn-ghost btn-sm" onclick="abrirCompartir()">⬆⬇ Compartir</button>
       <button class="btn btn-red btn-sm" onclick="vaciarLista()">🗑</button>
     </div>
+    <!-- 💡 NUEVO: Formulario de Alta Manual / Edición -->
+    <div id="manual-form" style="background: white; border: 1.5px solid var(--g200); border-radius: var(--rmd); padding: 12px; margin-bottom: 14px; display:none;">
+      <h4 id="manual-form-title" style="font-size:13px; margin-bottom:8px;">Agregar Producto Manual</h4>
+      <input type="hidden" id="manual-idx">
+      
+      <div style="display: flex; gap: 6px; flex-direction: column;">
+        <input type="text" id="manual-ean" placeholder="EAN / Código de barras (Opcional)" style="padding: 8px; font-size: 13px; border: 1px solid var(--g200); border-radius: 6px;">
+        
+        <input type="text" id="manual-titulo" placeholder="Nombre del producto (ej: Papas x1kg)" style="padding: 8px; font-size: 13px; border: 1px solid var(--g200); border-radius: 6px;">
+        
+        <div style="display:flex; gap:6px;">
+          <input type="number" id="manual-precio" placeholder="Precio $" style="flex:1; padding: 8px; font-size: 13px; border: 1px solid var(--g200); border-radius: 6px;">
+          <input type="number" id="manual-cantidad" placeholder="Cant." value="1" style="width:70px; padding: 8px; font-size: 13px; border: 1px solid var(--g200); border-radius: 6px;">
+        </div>
+        
+        <div style="display: flex; gap: 6px; margin-top: 4px;">
+          <button class="btn btn-green btn-sm" onclick="guardarProductoManual()" style="flex:1;">Guardar</button>
+          <button class="btn btn-ghost btn-sm" onclick="toggleManualForm(false)">Cancelar</button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Botón para abrir el alta manual -->
+    <button class="btn btn-dark btn-sm" id="btn-abrir-manual" onclick="toggleManualForm(true)" style="margin-bottom:12px; width:100%;">➕ Agregar ítem manual / personalizado</button>
+
+    
     <div id="refresh-status" class="refresh-status" style="display:none"></div>
 
     <div id="store-compare-section" style="display:none">
@@ -300,7 +326,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;b
       <div id="missing-alert" style="display:none" class="missing-alert"></div>
     </div>
 
-    <div class="section-title">Productos</div>
+    <div class="section-title">Productos</div>   
+    <!-- 💡 NUEVO: Buscador interno de la lista -->
+    <div class="search-row" style="margin-top: 10px;">
+      <input type="text" id="filterListInput" placeholder="Filtrar productos en esta lista..." oninput="renderLista()" style="padding: 8px 12px; font-size: 13px;">
+    </div>
     <div id="list-body"></div>
 
     <div id="total-bar-wrap" style="display:none">
@@ -314,6 +344,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;b
 
   <!-- ══ TAB PERFILES ══ -->
   <div id="tab-perfiles" style="display:none">
+    <div class="list-controls">
+      <button class="btn btn-green btn-sm" onclick="abrirAnalizadorDiff()">⚖️ Comparar</button>
+      <button class="btn btn-ghost btn-sm" onclick="renombrarListaActual()" title="Renombrar lista actual">✏️ Renombrar</button>
+      <button class="btn btn-ghost btn-sm" onclick="guardarListaComo()" title="Crear una copia/historial con otro nombre">💾 Guardar como...</button>
+    </div>
     <div class="section-title">Tus listas de compras</div>
     <div class="profiles-list" id="profiles-list"></div>
     <div class="section-title">Nueva lista</div>
@@ -331,9 +366,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;b
   <div class="modal-sheet">
     <div class="modal-title" id="modal-title-text">Compartir lista</div>
     <div class="modal-tabs">
-      <button class="modal-tab active" onclick="switchModalTab('compartir')">⬆ Compartir</button>
-      <button class="modal-tab" onclick="switchModalTab('exportar')">📤 Exportar JSON</button>
-      <button class="modal-tab" onclick="switchModalTab('importar')">📥 Importar</button>
+      <button class="modal-tab active" onclick="switchModalTab('compartir')">⬆⬇ Compartir</button>
+      <button class="modal-tab" onclick="switchModalTab('exportar')">⬆ Exportar JSON</button>
+      <button class="modal-tab" onclick="switchModalTab('importar')">⬇ Importar</button>
     </div>
 
     <!-- Compartir -->
@@ -363,7 +398,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;b
       <p style="font-size:12px;color:var(--g600);margin:8px 0 12px;">Lista destino:</p>
       <select id="import-target-profile" style="width:100%;padding:9px 12px;border:1.5px solid var(--g200);border-radius:var(--rmd);font-size:14px;background:white;outline:none;margin-bottom:14px;"></select>
       <div class="share-actions">
-        <button class="btn btn-green" style="flex:1" onclick="importarLista()">📥 Importar</button>
+        <button class="btn btn-green" style="flex:1" onclick="importarLista()">⬇ Importar</button>
         <button class="btn btn-ghost" onclick="cerrarModal()">✕</button>
       </div>
     </div>
@@ -581,6 +616,28 @@ async function buscarPrecios(silencioso) {
   }
 
   prodaGuardar = { ean, titulo, lugar: winner ? STORES[winner].name : 'N/A', lugarId: winner || 'ninguno', precio: winner ? precios[winner] : 0, allPrices: { ...precios }, ts: Date.now() };
+
+  // 💡 NUEVO: Hacer que las tarjetas actualicen el destino al hacerles click
+  for (const k of ['coto', 'carrefour', 'dia', 'masonline']) {
+    const card = document.getElementById('card-' + k);
+    if (precios[k] > 0) {
+      card.style.cursor = 'pointer';
+      card.onclick = function() {
+        // Quitamos la clase 'winner' visual de todas y se la ponemos a la elegida
+        ['coto', 'carrefour', 'dia', 'masonline'].forEach(x => document.getElementById('card-'+x).classList.remove('winner'));
+        card.classList.add('winner');
+        
+        // Actualizamos la selección en el objeto que se va a guardar
+        prodaGuardar.lugarId = k;
+        prodaGuardar.lugar = STORES[k].name;
+        prodaGuardar.precio = precios[k];
+        showToast(`Seleccionado: ${STORES[k].name}`);
+      };
+    } else {
+      card.onclick = null;
+      card.style.cursor = 'default';
+    }
+  }
   
   container.style.display = 'block';
   populateProfileSelect();
@@ -643,6 +700,7 @@ function eliminarItem(pid,idx) {
   let l=loadLista(pid); l.splice(idx,1); saveLista(pid,l); updateCartHeader(); renderLista();
 }
 function cambiarCantidad(pid,idx,d) {
+  console.log(pid);
   let l=loadLista(pid);
   l[idx].cantidad=Math.max(1,(l[idx].cantidad||1)+d);
   saveLista(pid,l); updateCartHeader(); renderLista();
@@ -651,6 +709,97 @@ function vaciarLista() {
   const pid=document.getElementById('profile-list-select').value;
   if (!confirm('¿Vaciar esta lista?')) return;
   saveLista(pid,[]); updateCartHeader(); renderLista();
+}
+
+
+// Mostrar/Ocultar formulario manual (Actualizado con EAN)
+function toggleManualForm(show, idx = null) {
+  const form = document.getElementById('manual-form');
+  const btnAbrir = document.getElementById('btn-abrir-manual');
+  form.style.display = show ? 'block' : 'none';
+  if(btnAbrir) btnAbrir.style.display = show ? 'none' : 'block';
+  
+  if(!show) {
+    document.getElementById('manual-idx').value = '';
+    document.getElementById('manual-ean').value = ''; // Limpiar EAN
+    document.getElementById('manual-titulo').value = '';
+    document.getElementById('manual-precio').value = '';
+    document.getElementById('manual-cantidad').value = '1';
+    return;
+  }
+
+  if (idx !== null) {
+    // MODO EDICIÓN
+    const pid = document.getElementById('profile-list-select').value;
+    const item = loadLista(pid)[idx];
+    document.getElementById('manual-form-title').textContent = "Editar Producto";
+    document.getElementById('manual-idx').value = idx;
+    
+    // Si el EAN es autogenerado (empieza con MAN_), lo dejamos vacío para comodidad del usuario,
+    // si es un EAN real numérico, se lo mostramos para que pueda editarlo.
+    document.getElementById('manual-ean').value = item.ean.startsWith('MAN_') ? '' : item.ean;
+    
+    document.getElementById('manual-titulo').value = item.titulo;
+    document.getElementById('manual-precio').value = item.precio || 0;
+    document.getElementById('manual-cantidad').value = item.cantidad || 1;
+  } else {
+    // MODO NUEVO
+    document.getElementById('manual-form-title').textContent = "Agregar Producto Manual";
+    document.getElementById('manual-idx').value = '';
+    document.getElementById('manual-ean').value = '';
+  }
+}
+
+// Guardar producto manual o editado (Actualizado con EAN)
+function guardarProductoManual() {
+  const pid = document.getElementById('profile-list-select').value;
+  const idx = document.getElementById('manual-idx').value;
+  let ean = document.getElementById('manual-ean').value.trim();
+  const titulo = document.getElementById('manual-titulo').value.trim();
+  const precio = parseFloat(document.getElementById('manual-precio').value) || 0;
+  const cantidad = parseInt(document.getElementById('manual-cantidad').value) || 1;
+
+  if (!titulo) { alert("El nombre es obligatorio"); return; }
+
+  let lista = loadLista(pid);
+
+  if (idx !== '') {
+    // MODO EDICIÓN: Actualizar ítem existente
+    // Si el usuario borró el EAN o estaba vacío, y originalmente tenía un EAN manual 'MAN_', lo preservamos.
+    // Si puso un EAN nuevo válido, lo reemplazamos.
+    if (!ean) {
+      ean = lista[idx].ean || ('MAN_' + Date.now());
+    }
+    
+    lista[idx].ean = ean;
+    lista[idx].titulo = titulo;
+    lista[idx].precio = precio;
+    lista[idx].cantidad = cantidad;
+    // Si es manual puro cambiamos el lugar, si venía de un súper podés elegir mantenerlo o setear 'Manual'
+    lista[idx].lugar = lista[idx].lugar === 'Manual' ? 'Manual' : lista[idx].lugar; 
+  } else {
+    // MODO NUEVO: Si no escribió un EAN, autogeneramos un código interno único
+    if (!ean) {
+      ean = 'MAN_' + Date.now();
+    }
+
+    lista.push({
+      ean: ean,
+      titulo: titulo,
+      precio: precio,
+      cantidad: cantidad,
+      lugar: 'Manual',
+      lugarId: 'ninguno',
+      allPrices: { manual: precio },
+      ts: Date.now()
+    });
+  }
+
+  saveLista(pid, lista);
+  toggleManualForm(false);
+  updateCartHeader();
+  renderLista();
+  showToast("Ítem guardado con éxito");
 }
 
 // ═══════════════════════════════════
@@ -793,7 +942,15 @@ function renderLista() {
       return ap[filtroMercadoActivo] === undefined;
     });
   }
-  // ---------------------
+  
+  // 💡 NUEVO: Filtrado por texto ingresado en el buscador de la lista
+  const queryFiltro = document.getElementById('filterListInput')?.value.trim().toLowerCase();
+  if (queryFiltro) {
+    lista = lista.filter(item => 
+      item.titulo.toLowerCase().includes(queryFiltro) || 
+      item.ean.includes(queryFiltro)
+    );
+  }
 
   const bodyEl = document.getElementById('list-body');
   bodyEl.innerHTML = '';
@@ -881,6 +1038,7 @@ function renderLista() {
       </div>
       <div class="item-price" style="${estaComprado ? 'text-decoration: line-through;' : ''}">${precioDisplay}</div>
       <button class="btn-del" title="Copiar a otra lista" onclick="abrirCopiarProducto('${pid}',${realIdx})" style="font-size:16px;opacity:.45;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.45">➔</button>
+      <button class="btn-del" title="Editar" onclick="toggleManualForm(true, ${realIdx})" style="font-size:14px; margin-right:4px; opacity:.45;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.45">✏</button>
       <button class="btn-del" onclick="eliminarItem('${pid}',${realIdx})"><span style="font-size: 16px;">✕</span></button>
     </div>`;
   });
@@ -901,6 +1059,7 @@ function renderLista() {
   document.getElementById('list-items-count').textContent = lista.length + ' productos / '+unidadesLista+' unidades';
   document.getElementById('store-compare-section').style.display = 'block';
   renderStoreCompare(storeTotals, storeMissing, storeFound, storeUnits, listaCompleta.length);
+  updateCartHeader();
 }
 
 function toggleComprado(pid, index) {
@@ -1008,7 +1167,16 @@ function selectEmoji(e) {
   selectedEmoji=e;
   document.querySelectorAll('.emoji-opt').forEach(el=>el.classList.toggle('sel',el.textContent===e));
 }
-function activarPerfil(id) { setActiveProfile(id); populateProfileSelect(); renderPerfiles(); updateCartHeader(); showToast('Lista activa cambiada'); }
+
+function activarPerfil(id) { 
+  setActiveProfile(id); 
+  populateProfileSelect(); 
+  renderPerfiles(); 
+  renderLista();
+  //updateCartHeader(); 
+  showToast('Lista activa cambiada'); 
+}
+
 function crearPerfil() {
   const name=document.getElementById('new-profile-name').value.trim(); if(!name){alert('Ingresá un nombre.');return;}
   const profiles=loadProfiles(); const id='p_'+Date.now();
@@ -1031,7 +1199,12 @@ let currentModalTab='compartir';
 
 function abrirCompartir() {
   const pid=document.getElementById('profile-list-select').value;
-  const lista=loadLista(pid); if(!lista.length){alert('La lista está vacía.');return;}
+  const lista=loadLista(pid); 
+  if(!lista.length)
+  {
+      alert('La lista está vacía.');
+      //return;
+  }
   populateProfileSelect();
   generarTextoCompartir(pid,lista);
   generarJSON(pid,lista);
@@ -1186,7 +1359,10 @@ async function buscarPorTexto(query) {
   if (resDia.status === 'fulfilled' && resDia.value) addResult('dia', resDia.value);
   if (resMasonline.status === 'fulfilled' && resMasonline.value) addResult('masonline', resMasonline.value);
 
-  textoResultsTemp = Object.values(byEan);
+  // 💡 AGREGAR EL ORDENAMIENTO ALFABÉTICO ACÁ:
+  textoResultsTemp = Object.values(byEan).sort((a, b) => 
+    a.titulo.localeCompare(b.titulo, 'es', { sensitivity: 'base' })
+  );
   const bodyEl = document.getElementById('texto-results-body');
   bodyEl.innerHTML = '';
 
@@ -1376,6 +1552,203 @@ function cerrarCopiar() {
   document.getElementById('modal-copiar').style.display = 'none';
   copiarItemData = null;
 }
+// ═══════════════════════════════════
+//  ANALIZADOR DIFF
+// ═══════════════════════════════════
+function abrirAnalizadorDiff() {
+  const profiles = loadProfiles();
+  const currentPid = document.getElementById('profile-list-select').value;
+  
+  // Llenamos el select del modal excluyendo la lista actual
+  const targetSelect = document.getElementById('diff-target-select');
+  targetSelect.innerHTML = profiles
+    .filter(p => p.id !== currentPid)
+    .map(p => `<option value="${p.id}">${p.emoji} ${p.name}</option>`).join('');
+
+  if(!targetSelect.innerHTML) {
+    alert("Necesitás tener al menos dos listas creadas en 'Perfiles' para poder compararlas.");
+    return;
+  }
+
+  document.getElementById('modal-diff').style.display = 'flex';
+  ejecutarDiff();
+}
+
+function ejecutarDiff() {
+  const currentPid = document.getElementById('profile-list-select').value;
+  const pastPid = document.getElementById('diff-target-select').value;
+
+  const currentList = loadLista(currentPid);
+  const pastList = loadLista(pastPid);
+  const resultsEl = document.getElementById('diff-results');
+
+  if(!pastPid) { resultsEl.innerHTML = "Seleccioná una lista válida."; return; }
+
+  // Mapeos por EAN para búsqueda directa
+  const currentMap = new Map(currentList.map(i => [i.ean, i]));
+  const pastMap = new Map(pastList.map(i => [i.ean, i]));
+
+  let compradosSoloEsteMes = [];
+  let compradosSoloMesPasado = [];
+  let compartidosConCambioCosto = [];
+
+  let costoTotalActual = 0;
+  let costoTotalPasado = 0;
+
+  // Analizar lista actual
+  currentList.forEach(item => {
+    const subtotalActual = (item.precio || 0) * (item.cantidad || 1);
+    costoTotalActual += subtotalActual;
+
+    if (!pastMap.has(item.ean)) {
+      compradosSoloEsteMes.push({ titulo: item.titulo, costo: subtotalActual });
+    } else {
+      const itemPasado = pastMap.get(item.ean);
+      const subtotalPasado = (itemPasado.precio || 0) * (itemPasado.cantidad || 1);
+      if (subtotalActual !== subtotalPasado) {
+        compartidosConCambioCosto.push({
+          titulo: item.titulo,
+          cantAct: item.cantidad,
+          cantPas: itemPasado.cantidad,
+          dif: subtotalActual - subtotalPasado
+        });
+      }
+    }
+  });
+
+  // Analizar lo que se dejó de comprar
+  pastList.forEach(item => {
+    const subtotalPasado = (item.precio || 0) * (item.cantidad || 1);
+    costoTotalPasado += subtotalPasado;
+
+    if (!currentMap.has(item.ean)) {
+      compradosSoloMesPasado.push({ titulo: item.titulo, costo: subtotalPasado });
+    }
+  });
+
+  // Renderizar el reporte financiero
+  const netDiff = costoTotalActual - costoTotalPasado;
+  let html = `
+    <div style="background:var(--g100); padding:10px; border-radius:6px; margin-bottom:12px; text-align:center;">
+      <div style="font-size:11px; color:var(--g600)">Balance de gastos</div>
+      <div style="font-size:18px; font-weight:800; color: ${netDiff > 0 ? 'var(--red)' : 'var(--green)'}">
+        ${netDiff > 0 ? 'Gastaste más: +' : 'Gastaste menos: '}$${Math.abs(netDiff).toFixed(2)}
+      </div>
+      <div style="font-size:11px; margin-top:2px;">(Actual: $${costoTotalActual.toFixed(2)} vs Pasado: $${costoTotalPasado.toFixed(2)})</div>
+    </div>
+  `;
+
+  // Detalle 1: Nuevas incorporaciones
+  html += `<details open style="margin-bottom:8px;"><summary><b>➕ Nuevos este mes (${compradosSoloEsteMes.length})</b></summary><div style="padding-left:10px; max-height:120px; overflow-y:auto; font-size:12px; color:var(--g700);">`;
+  if(!compradosSoloEsteMes.length) html += `<i>Ninguno</i>`;
+  compradosSoloEsteMes.forEach(i => html += `<div>• ${i.titulo} <span style="color:var(--amber)">($${i.costo.toFixed(2)})</span></div>`);
+  html += `</div></details>`;
+
+  // Detalle 2: Cosas que no llevaste ahora
+  html += `<details open style="margin-bottom:8px;"><summary><b>❌ Llevados el mes pasado y ahora NO (${compradosSoloMesPasado.length})</b></summary><div style="padding-left:10px; max-height:120px; overflow-y:auto; font-size:12px; color:var(--g700);">`;
+  if(!compradosSoloMesPasado.length) html += `<i>Ninguno</i>`;
+  compradosSoloMesPasado.forEach(i => html += `<div>• ${i.titulo} <span style="color:var(--red)">(-$${i.costo.toFixed(2)})</span></div>`);
+  html += `</div></details>`;
+
+  // Detalle 3: Cambios de cantidades o inflación local
+  html += `<details style="margin-bottom:8px;"><summary><b>🔄 Cambios en costo total por producto (${compartidosConCambioCosto.length})</b></summary><div style="padding-left:10px; max-height:120px; overflow-y:auto; font-size:12px; color:var(--g700);">`;
+  if(!compartidosConCambioCosto.length) html += `<i>Sin variaciones detectadas</i>`;
+  compartidosConCambioCosto.forEach(i => {
+    const colorDif = i.dif > 0 ? 'var(--red)' : 'var(--green)';
+    html += `<div>• ${i.titulo} <span style="font-size:10px; color:var(--g400);">(Cant: ${i.cantPas}➔${i.cantAct})</span> <span style="color:${colorDif}">[${i.dif > 0 ? '+' : ''}$${i.dif.toFixed(2)}]</span></div>`;
+  });
+  html += `</div></details>`;
+
+  resultsEl.innerHTML = html;
+}
+
+// 💡 Función para renombrar el perfil actual
+function renombrarListaActual() {
+  const currentPid = document.getElementById('profile-list-select')?.value || activeProfileId();
+  let profiles = loadProfiles();
+  const perfilIndex = profiles.findIndex(p => p.id === currentPid);
+
+  if (perfilIndex === -1) {
+    showToast("No se pudo encontrar la lista seleccionada");
+    return;
+  }
+
+  const nombreActual = profiles[perfilIndex].name;
+  const nuevoNombre = prompt("Ingresá el nuevo nombre para la lista:", nombreActual);
+
+  if (nuevoNombre === null) return; // Cancelado por el usuario
+  if (nuevoNombre.trim() === "") {
+    alert("El nombre de la lista no puede estar vacío.");
+    return;
+  }
+
+  // Actualizamos el nombre en el array de perfiles
+  profiles[perfilIndex].name = nuevoNombre.trim();
+  saveProfiles(profiles);
+
+  // Recargamos los selectors de perfiles de la app para reflejar el cambio
+  if (typeof populateProfileSelect === 'function') populateProfileSelect();
+  // Si usás una función específica para los selectores de la pestaña lista:
+  const listSelect = document.getElementById('profile-list-select');
+  if (listSelect) {
+    listSelect.innerHTML = profiles.map(p => `<option value="${p.id}">${p.emoji || '🛒'} ${p.name}</option>`).join('');
+    listSelect.value = currentPid;
+  }
+
+  showToast("¡Lista renombrada con éxito!");
+  renderLista();
+}
+
+// 💡 Función para clonar la lista actual (Guardar como...)
+function guardarListaComo() {
+  const currentPid = document.getElementById('profile-list-select')?.value || activeProfileId();
+  const listaActual = loadLista(currentPid);
+
+  if (!listaActual || listaActual.length === 0) {
+    alert("El carrito actual está vacío. Agregá algunos productos antes de guardarlo como historial.");
+    return;
+  }
+
+  // Sugerimos un nombre por defecto estructurado
+  const nuevoNombre = prompt("Guardar copia de esta lista como:", "Compra mes Julio");
+
+  if (nuevoNombre === null) return; // Cancelado
+  if (nuevoNombre.trim() === "") {
+    alert("Debes ingresar un nombre válido para el nuevo historial.");
+    return;
+  }
+
+  let profiles = loadProfiles();
+  const nuevoId = 'prof_' + Date.now(); // ID único basado en timestamp
+
+  // Creamos el nuevo perfil histórico
+  const nuevoPerfil = {
+    id: nuevoId,
+    name: nuevoNombre.trim(),
+    emoji: "📅", // Emoji por defecto para distinguir los historiales mensuales
+    created: Date.now()
+  };
+
+  profiles.push(nuevoPerfil);
+  saveProfiles(profiles);
+
+  // Copiamos el contenido exacto del carrito actual al nuevo perfil
+  // Usamos JSON parse/stringify para romper la referencia en memoria y que queden independientes
+  saveLista(nuevoId, JSON.parse(JSON.stringify(listaActual)));
+
+  // Actualizamos la interfaz
+  if (typeof populateProfileSelect === 'function') populateProfileSelect();
+  
+  const listSelect = document.getElementById('profile-list-select');
+  if (listSelect) {
+    listSelect.innerHTML = profiles.map(p => `<option value="${p.id}">${p.emoji} ${p.name}</option>`).join('');
+    // Automáticamente saltamos a la nueva lista creada para que el usuario la vea
+    listSelect.value = nuevoId; 
+  }
+
+  showToast(`¡Se generó el historial "${nuevoNombre}"!`);
+  renderLista();
+}
 
 // ═══════════════════════════════════
 //  INIT
@@ -1405,6 +1778,23 @@ function cerrarCopiar() {
     <div style="font-size:13px;font-weight:600;margin-bottom:8px;color:var(--g700);">Destino:</div>
     <div id="copiar-listas-opciones" style="display:flex;flex-direction:column;gap:8px;margin-bottom:18px;"></div>
     <button class="btn btn-ghost" style="width:100%" onclick="cerrarCopiar()">Cancelar</button>
+  </div>
+</div>
+
+<!-- MODAL DIFF / COMPARADOR DE CARROS -->
+<div id="modal-diff" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.55); z-index:10002; justify-content:center; align-items:center;">
+  <div style="background:white; padding:24px 20px; border-radius:var(--rlg); width:95%; max-width:500px; max-height:85vh; overflow-y:auto; box-shadow:0 8px 32px rgba(0,0,0,.18);">
+    <div style="font-size:17px;font-weight:700;margin-bottom:6px;">⚖️ Comparación Cruzada de Listas</div>
+    <p style="font-size:12px; color:var(--g600); margin-bottom:12px;">Compará lo que tenés en este carro actual contra un historial anterior.</p>
+    
+    <div style="margin-bottom:14px;">
+      <label style="font-size:12px; font-weight:bold; color:var(--g700);">Comparar lista actual con:</label>
+      <select id="diff-target-select" onchange="ejecutarDiff()" style="width:100%; padding:8px; border-radius:6px; margin-top:4px; border:1px solid var(--g300);"></select>
+    </div>
+
+    <div id="diff-results" style="font-size:13px; line-height:1.4;"></div>
+
+    <button class="btn btn-dark" style="width:100%; margin-top:16px;" onclick="document.getElementById('modal-diff').style.display='none'">Cerrar Analizador</button>
   </div>
 </div>
 
