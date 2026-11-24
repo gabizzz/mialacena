@@ -461,7 +461,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;b
 
 <script>
 // ═══════════════════════════════════
-//  STORE CONFIG & PROXY FALLBACK
+//  STORE CONFIG, WORKER & CACHE
 // ═══════════════════════════════════
 const STORES = {
   coto:      { id:'coto',      name:'Coto',      color:'#c0392b', base:'https://www.cotodigital.com.ar' },
@@ -470,31 +470,78 @@ const STORES = {
   masonline: { id:'masonline', name:'ChangoMás', color:'#2d2440', base:'https://www.masonline.com.ar' }
 };
 
-const PROXIES = [
+// Pegá aquí la URL de tu Cloudflare Worker terminada en "?url="
+const CUSTOM_PROXY_URL = ""; // Ej: "https://spotprice-proxy.gabizzz.workers.dev/?url="
+
+const FALLBACK_PROXIES = [
   url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-  url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
   url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`
 ];
 
-async function fetchJsonSmart(targetUrl, timeoutMs = 7500) {
-  try {
-    const res = await fetch(targetUrl, {
-      headers: { 'Accept': 'application/json' },
-      signal: AbortSignal.timeout(timeoutMs)
-    });
-    if (res.ok) return await res.json();
-  } catch (_) {}
+const _memCache = new Map();
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutos
 
-  for (const buildProxy of PROXIES) {
+function readLocalCache(key) {
+  const mem = _memCache.get(key);
+  if (mem && (Date.now() - mem.ts) < CACHE_TTL_MS) return mem.data;
+  try {
+    const raw = localStorage.getItem("sp_cache_" + key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if ((Date.now() - parsed.ts) < CACHE_TTL_MS) {
+      _memCache.set(key, parsed);
+      return parsed.data;
+    }
+  } catch (_) {}
+  return null;
+}
+
+function writeLocalCache(key, data) {
+  const entry = { ts: Date.now(), data };
+  _memCache.set(key, entry);
+  try {
+    localStorage.setItem("sp_cache_" + key, JSON.stringify(entry));
+  } catch (_) {}
+}
+
+async function fetchWithTimeout(url, timeoutMs = 4500) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, { signal: ctrl.signal });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    return JSON.parse(await res.text());
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+async function fetchJsonSmart(targetUrl, timeoutMs = 4500) {
+  const cached = readLocalCache(targetUrl);
+  if (cached) return cached;
+
+  // 1) Worker propio (si está configurado)
+  if (CUSTOM_PROXY_URL) {
     try {
-      const res = await fetch(buildProxy(targetUrl), { signal: AbortSignal.timeout(timeoutMs) });
-      if (!res.ok) continue;
-      const txt = await res.text();
-      return JSON.parse(txt);
+      const data = await fetchWithTimeout(`${CUSTOM_PROXY_URL}${encodeURIComponent(targetUrl)}`, timeoutMs);
+      writeLocalCache(targetUrl, data);
+      return data;
     } catch (_) {}
   }
 
-  throw new Error(`No se pudo obtener JSON desde ${targetUrl}`);
+  // 2) Intento directo rápido
+  try {
+    const direct = await fetchWithTimeout(targetUrl, 2000);
+    writeLocalCache(targetUrl, direct);
+    return direct;
+  } catch (_) {}
+
+  // 3) Carrera entre proxies públicos de respaldo
+  const data = await Promise.any(
+    FALLBACK_PROXIES.map(fn => fetchWithTimeout(fn(targetUrl), timeoutMs))
+  );
+  writeLocalCache(targetUrl, data);
+  return data;
 }
 
 function buildStoreUrl(storeKey, prod, fallbackQueryOrEan) {
@@ -672,8 +719,7 @@ async function fetchCoto(ean) {
 async function fetchVtex(ean, base, storeKey = 'carrefour') {
   const endpoints = [
     `${base}/api/catalog_system/pub/products/search/?fq=alternateIds_Ean:${encodeURIComponent(ean)}`,
-    `${base}/api/io/_v/api/intelligent-search/product_search/?query=${encodeURIComponent(ean)}&count=5`,
-    `${base}/api/catalog_system/pub/products/search/?ft=${encodeURIComponent(ean)}&_from=0&_to=4`
+    `${base}/api/io/_v/api/intelligent-search/product_search/?query=${encodeURIComponent(ean)}&count=5`
   ];
 
   for (const url of endpoints) {
