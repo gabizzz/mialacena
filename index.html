@@ -472,13 +472,16 @@ const STORES = {
 
 const PROXIES = [
   url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-  url => `https://cors.eu.org/${url}`,
-  url => `https://thingproxy.freeboard.io/fetch/${url}`
+  url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+  url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`
 ];
 
-async function fetchJsonSmart(targetUrl, timeoutMs = 6500) {
+async function fetchJsonSmart(targetUrl, timeoutMs = 7500) {
   try {
-    const res = await fetch(targetUrl, { signal: AbortSignal.timeout(timeoutMs) });
+    const res = await fetch(targetUrl, {
+      headers: { 'Accept': 'application/json' },
+      signal: AbortSignal.timeout(timeoutMs)
+    });
     if (res.ok) return await res.json();
   } catch (_) {}
 
@@ -509,6 +512,44 @@ function buildStoreUrl(storeKey, prod, fallbackQueryOrEan) {
     return `https://www.cotodigital.com.ar/sitios/cdigi/browse?_dyncharset=utf-8&Ntt=${encodeURIComponent(fallbackQueryOrEan || '')}`;
   }
   return `${base}/${encodeURIComponent(fallbackQueryOrEan || '')}?_q=${encodeURIComponent(fallbackQueryOrEan || '')}&map=ft`;
+}
+
+function extractVtexEan(prod, item) {
+  if (item?.ean && /^\d{8,14}$/.test(String(item.ean).trim())) {
+    return String(item.ean).trim();
+  }
+  const refs = item?.referenceId || [];
+  const eanRef = refs.find(r => /ean|gtin|barcode/i.test(String(r.Key || r.Name || '')));
+  if (eanRef?.Value) return String(eanRef.Value).trim();
+  if (item?.ean) return String(item.ean).trim();
+  if (refs[0]?.Value) return String(refs[0].Value).trim();
+  return prod?.productReference || prod?.productId || null;
+}
+
+function extractVtexOffer(prod) {
+  const items = Array.isArray(prod?.items) ? prod.items : [];
+  for (const item of items) {
+    const sellers = Array.isArray(item?.sellers) ? item.sellers : [];
+    const activeSeller = sellers.find(s => Number(s?.commertialOffer?.Price) > 0) || sellers[0];
+    const offer = activeSeller?.commertialOffer;
+    const spotP = Number(offer?.Price || 0);
+    if (spotP > 0) {
+      const listP = Number(offer?.ListPrice || spotP);
+      let badge = null, oldP = null;
+      if (listP > spotP) {
+        badge = Math.round(((listP - spotP) / listP) * 100) + '% DTO';
+        oldP = listP;
+      }
+      return {
+        item,
+        precio: parseFloat(spotP),
+        oldP: oldP ? parseFloat(oldP) : null,
+        badge,
+        img: item?.images?.[0]?.imageUrl || ''
+      };
+    }
+  }
+  return null;
 }
 
 let filtroMercadoActivo = null;
@@ -630,32 +671,31 @@ async function fetchCoto(ean) {
 
 async function fetchVtex(ean, base, storeKey = 'carrefour') {
   const endpoints = [
-    `${base}/api/io/_v/api/intelligent-search/product_search?query=${encodeURIComponent(ean)}`,
-    `${base}/api/catalog_system/pub/products/search/?fq=alternateIds_Ean:${encodeURIComponent(ean)}`
+    `${base}/api/catalog_system/pub/products/search/?fq=alternateIds_Ean:${encodeURIComponent(ean)}`,
+    `${base}/api/io/_v/api/intelligent-search/product_search/?query=${encodeURIComponent(ean)}&count=5`,
+    `${base}/api/catalog_system/pub/products/search/?ft=${encodeURIComponent(ean)}&_from=0&_to=4`
   ];
 
   for (const url of endpoints) {
     try {
       const r = await fetchJsonSmart(url);
-      const prod = Array.isArray(r) ? r[0] : r?.products?.[0];
-      if (!prod) continue;
-      const offer = prod.items?.[0]?.sellers?.[0]?.commertialOffer;
-      if (!offer) continue;
-      const listP = offer.ListPrice;
-      const spotP = offer.Price;
-      if (!spotP || spotP <= 0) continue;
-      let badge = null, oldP = null;
-      if (listP > spotP) {
-        badge = Math.round(((listP - spotP) / listP) * 100) + '% DTO';
-        oldP = listP;
-      }
+      const list = Array.isArray(r) ? r : (r?.products || []);
+      if (!list.length) continue;
+
+      const prod = list.find(p =>
+        (p.items || []).some(it => String(it?.ean || '').trim() === String(ean).trim())
+      ) || list[0];
+
+      const offerData = extractVtexOffer(prod);
+      if (!offerData) continue;
+
       return {
-        precio: parseFloat(spotP),
-        oldP: oldP ? parseFloat(oldP) : null,
-        badge,
+        precio: offerData.precio,
+        oldP: offerData.oldP,
+        badge: offerData.badge,
         titulo: prod.productName || '',
         marca: prod.brand || 'Genérico',
-        img: prod.items?.[0]?.images?.[0]?.imageUrl || '',
+        img: offerData.img,
         url: buildStoreUrl(storeKey, prod, ean)
       };
     } catch (_) {}
@@ -921,6 +961,10 @@ async function recalcularLista() {
   let ok=0,err=0;
   for (let i=0;i<lista.length;i++) {
     stEl.textContent=`Actualizando ${i+1}/${lista.length}...`;
+    if (!/^\d{8,14}$/.test(String(lista[i].ean || '').trim())) {
+      err++;
+      continue;
+    }
     try {
       const [coto,carrefour,dia,masonline]=await Promise.all([
         fetchCoto(lista[i].ean).catch(()=>null),
@@ -968,20 +1012,32 @@ async function buscarAlternativa(storeKey, eanOriginal, tituloOriginal) {
       alternativasTemporales = prods.map(p => ({
         titulo: p.data?.sku_display_name || p.value || "Producto",
         precio: parseFloat(p.data?.product_list_price || p.data?.price || 0),
-        ean: p.data?.item_id || p.data?.ean || p.id || "",
+        ean: p.data?.product_main_ean || p.data?.gtin || p.data?.item_id || p.id || "",
         url: buildStoreUrl('coto', p.data || {}, tituloOriginal)
       }));
     } else {
       const baseUrl = STORES[storeKey].base;
-      const url = `${baseUrl}/api/io/_v/api/intelligent-search/product_search?query=${encodeURIComponent(tituloOriginal)}`;
-      const r = await fetchJsonSmart(url);
-      prods = r.products || [];
-      alternativasTemporales = prods.map(p => ({
-        titulo: p.productName,
-        precio: p.items?.[0]?.sellers?.[0]?.commertialOffer?.Price || 0,
-        ean: p.items?.[0]?.referenceId?.[0]?.Value || p.productId || "",
-        url: buildStoreUrl(storeKey, p, tituloOriginal)
-      }));
+      const endpoints = [
+        `${baseUrl}/api/io/_v/api/intelligent-search/product_search/?query=${encodeURIComponent(tituloOriginal)}&count=8`,
+        `${baseUrl}/api/catalog_system/pub/products/search/?ft=${encodeURIComponent(tituloOriginal)}&_from=0&_to=7`
+      ];
+      for (const url of endpoints) {
+        try {
+          const r = await fetchJsonSmart(url);
+          prods = Array.isArray(r) ? r : (r?.products || []);
+          if (prods.length) break;
+        } catch (_) {}
+      }
+      alternativasTemporales = prods.map(p => {
+        const offer = extractVtexOffer(p);
+        const eanVal = extractVtexEan(p, offer?.item || p.items?.[0]);
+        return {
+          titulo: p.productName || "Producto",
+          precio: offer ? offer.precio : 0,
+          ean: eanVal || "",
+          url: buildStoreUrl(storeKey, p, tituloOriginal)
+        };
+      }).filter(x => x.precio > 0);
     }
 
     if (alternativasTemporales.length === 0) {
@@ -1008,8 +1064,11 @@ function seleccionarReemplazo(index, eanOriginal, storeKey) {
   const prod = alternativasTemporales[index];
   const nuevoProducto = {
     ...prod,
+    lugar: STORES[storeKey].name,
+    lugarId: storeKey,
     allPrices: { [storeKey]: prod.precio },
-    urls: prod.url ? { [storeKey]: prod.url } : {}
+    urls: prod.url ? { [storeKey]: prod.url } : {},
+    ts: Date.now()
   };
   confirmarReemplazo(eanOriginal, nuevoProducto);
 }
@@ -1534,8 +1593,8 @@ async function fetchTextoCoto(query) {
 
 async function fetchTextoVtex(query, base, storeKey) {
   const endpoints = [
-    `${base}/api/io/_v/api/intelligent-search/product_search?query=${encodeURIComponent(query)}&count=6`,
-    `${base}/api/catalog_system/pub/products/search/?ft=${encodeURIComponent(query)}&_from=0&_to=5`
+    `${base}/api/io/_v/api/intelligent-search/product_search/?query=${encodeURIComponent(query)}&count=8`,
+    `${base}/api/catalog_system/pub/products/search/?ft=${encodeURIComponent(query)}&_from=0&_to=7`
   ];
 
   for (const url of endpoints) {
@@ -1545,24 +1604,17 @@ async function fetchTextoVtex(query, base, storeKey) {
       if (!prods.length) continue;
 
       return prods.map(p => {
-        const offer = p.items?.[0]?.sellers?.[0]?.commertialOffer;
-        if (!offer) return null;
-        const listP = offer.ListPrice, spotP = offer.Price;
-        if (!spotP || spotP <= 0) return null;
-        let badge = null, oldP = null;
-        if (listP > spotP) { badge = Math.round(((listP-spotP)/listP)*100)+'% DTO'; oldP = listP; }
-        const ean = p.items?.[0]?.referenceId?.find(ref => ref.Key === 'RefId')?.Value
-          || p.items?.[0]?.referenceId?.[0]?.Value
-          || p.productId
-          || null;
+        const offerData = extractVtexOffer(p);
+        if (!offerData) return null;
+        const ean = extractVtexEan(p, offerData.item);
         return {
           ean: ean ? String(ean) : null,
           titulo: p.productName || '',
           marca: p.brand || '',
-          img: p.items?.[0]?.images?.[0]?.imageUrl || '',
-          precio: parseFloat(spotP),
-          oldP,
-          badge,
+          img: offerData.img,
+          precio: offerData.precio,
+          oldP: offerData.oldP,
+          badge: offerData.badge,
           url: buildStoreUrl(storeKey, p, query)
         };
       }).filter(p => p && p.ean && p.precio > 0);
